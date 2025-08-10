@@ -40,17 +40,25 @@ builder.Dispose();
 ```
 
 **Pros**
+
 - Saves memory by avoiding per-entity duplication of large static data.
+    
 - Highly [[Cache-friendly|cache-friendly]] for read-only lookups.
+    
 - Thread-safe access without locks.
+      
 - No structural changes needed to modify "configuration" — just build a new blob and swap references.
 
 **Cons**
+
 - Read-only — if you need to change the data, you must build a new blob asset.
+      
 - Building blobs is more verbose than creating normal structs.
+      
 - Stored outside chunk memory → requires one pointer indirection to access.
 
 **Best use**
+
 - Large, shared, immutable configuration data:
     - Level layouts.
     - Weapon stats.
@@ -59,8 +67,11 @@ builder.Dispose();
 - Precomputed lookup tables.
 
 **Avoid if**
+
 - Data changes frequently (better use [[IComponentData]] or [[IBufferElementData (dynamic buffers)]]).
+      
 - Data is small and unique per entity (just use a normal component).
 
 **Extra tip:**  
+
 `BlobAsset` is often paired with [[ICleanupComponentData]] to free it at the right time, especially if built dynamically at runtime.

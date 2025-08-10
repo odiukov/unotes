@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "01. Components/BlobAsset (immutable data).md",
+                "file": "Shared.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "BlobAsset (immutable data)"
+              "title": "Shared"
             }
           }
         ]
@@ -170,24 +170,24 @@
   },
   "active": "12682dff9ea424e4",
   "lastOpenFiles": [
+    "Components/ISharedComponentData.md",
+    "Components/InternalBufferCapacity (IBC).md",
+    "Components/IBufferElementData (dynamic buffers).md",
+    "Components/IComponentData.md",
+    "Components/ICleanupComponentData.md",
+    "Components/Tag Component.md",
+    "Structural changes.md",
+    "Shared.md",
     "index.md",
     "Immutable.md",
     "Contiguous.md",
-    "Shared.md",
-    "Structural changes.md",
-    "01. Components/InternalBufferCapacity (IBC).md",
     "Chunk rearrangement.md",
     "Chunk.md",
-    "01. Components/Tag Component.md",
-    "01. Components/ISharedComponentData.md",
-    "01. Components/IEnableableComponent (toggleable components).md",
-    "01. Components/IComponentData.md",
-    "01. Components/ICleanupComponentData.md",
-    "01. Components/IBufferElementData (dynamic buffers).md",
-    "01. Components/BlobAsset (immutable data).md",
-    "00. Cache/Cache hit.md",
-    "00. Cache/Cache miss.md",
-    "00. Cache/Levels of cache.md",
-    "00. Cache/Cache-friendly.md"
+    "Components/IEnableableComponent (toggleable components).md",
+    "Components/BlobAsset (immutable data).md",
+    "Cache/Cache-friendly.md",
+    "Cache/Levels of cache.md",
+    "Cache/Cache miss.md",
+    "Cache/Cache hit.md"
   ]
 }
