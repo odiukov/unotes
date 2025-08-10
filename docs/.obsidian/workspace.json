@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Immutable.md",
+                "file": "01. Components/BlobAsset (immutable data).md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Immutable"
+              "title": "BlobAsset (immutable data)"
             }
           }
         ]
@@ -170,12 +170,12 @@
   },
   "active": "12682dff9ea424e4",
   "lastOpenFiles": [
-    "Contiguous.md",
     "index.md",
+    "Immutable.md",
+    "Contiguous.md",
     "Shared.md",
     "Structural changes.md",
     "01. Components/InternalBufferCapacity (IBC).md",
-    "Immutable.md",
     "Chunk rearrangement.md",
     "Chunk.md",
     "01. Components/Tag Component.md",

@@ -3,11 +3,15 @@ tags:
   - component
 ---
 **Description**
+
 - A way to store **large, [[Immutable|immutable]], and [[Shared|shared]]** data structures in [[Contiguous|contiguous]] native memory.
+    
 - Read-only at runtime — you build them once (usually at initialisation) and then share across many entities **without duplicating memory**.
+    
 - Stored outside of [[Chunk|chunks]] — referenced by components as `BlobAssetReference<T>`.
 
 **Example**
+
 ```csharp
 public struct WeaponData
 {
