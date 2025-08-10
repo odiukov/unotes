@@ -1,0 +1,1 @@
+All data stored in one contiguous block in memory → very cache-efficient.

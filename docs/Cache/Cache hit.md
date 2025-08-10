@@ -1,0 +1,1 @@
+Your next component data is right next to the one you just read, so it’s already in cache.

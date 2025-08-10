@@ -1,0 +1,1 @@
+Many entities can point to the same data without copying.
