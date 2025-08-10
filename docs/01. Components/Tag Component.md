@@ -3,7 +3,7 @@ tags:
   - component
 ---
 **Description**
-- Empty `IComponentData` or `ICleanupComponentData`.
+- Empty [[IComponentData]] or [[ICleanupComponentData]].
 - Used only for marking entities.
 
 **Example**
@@ -21,6 +21,3 @@ public struct PlayerTag : IComponentData {}
 **Best use**
 - Mark entity type (enemy, player, projectile).
 - Toggle behavior quickly.
-
-**Avoid if**
--

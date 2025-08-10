@@ -4,7 +4,7 @@ tags:
 ---
 **Description**
 - Structs holding **data only** (value types, no references to objects).
-- Stored in [[Chunk|chunks]], [[cache-friendly]].
+- Stored in [[Chunk|chunks]], [[Cache-friendly]].
 
 **Example**
 ```csharp
