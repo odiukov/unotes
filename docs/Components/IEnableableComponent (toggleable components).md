@@ -3,7 +3,7 @@ tags:
   - component
 ---
 #### Description
-- Components that can be **enabled/disabled** without structural changes.
+- Components that can be **enabled/disabled** without [[structural changes]].
 #### Example
 ```csharp
 public struct Stunned : IComponentData, IEnableableComponent {}

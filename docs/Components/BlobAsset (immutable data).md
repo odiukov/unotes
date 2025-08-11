@@ -57,8 +57,8 @@ builder.Dispose();
     - Dialogue scripts.
 - Precomputed lookup tables.
 #### Avoid if
-- Data changes frequently (better use [[IComponentData]] or [[IBufferElementData (dynamic buffers)]]).
+- Data changes frequently (better use [[IComponentData]] or [[IBufferElementData (dynamic buffers)|IBufferElementData]]).
       
 - Data is small and unique per entity (just use a normal component).
-#### Extra tip:
+#### Extra tip
 `BlobAsset` is often paired with [[ICleanupComponentData]] to free it at the right time, especially if built dynamically at runtime.

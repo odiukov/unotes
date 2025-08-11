@@ -5,12 +5,12 @@ tags:
 #### Description
 - Structs holding **data only** (value types, no references to objects).
       
-- Stored in [[Chunk|chunks]], [[Cache-friendly]].
+- Stored in [[Chunk|chunks]], [[Cache-friendly|cache-friendly]].
 #### Example
 ```csharp
 public struct Health : IComponentData { public int Value; }
 ```
-#### Pro
+#### Pros
 - Very high performance for bulk processing.
       
 - Easy to serialize.
