@@ -3,11 +3,11 @@ Data is laid out in memory so that when the CPU loads one piece of data, it’s 
 Modern CPUs don’t read memory one byte at a time — they fetch it in **cache lines** (usually 64 bytes). 
 If your data is [[Contiguous|contiguous]] in memory and you process it in order, the CPU can pre-load the next data chunk while you’re still working on the current one.
 
-**ECS [[chunk]] layout** and [[BlobAsset (immutable data)|BlobAssets]] are designed for this:
+**ECS [[Chunk]] layout** and [[BlobAsset (immutable data)|BlobAssets]] are designed for this:
 
-- [[IComponentData]] stores many entities’ components of the same type **back-to-back in a [[chunk|chunks]]** → processing them in a loop hits data that’s already in [[Levels of cache|L1/L2]] cache.
+- [[IComponentData]] stores many entities’ components of the same type **back-to-back in a [[Chunk|chunks]]** → processing them in a loop hits data that’s already in [[Levels of cache|L1/L2]] cache.
     
-- [[BlobAsset (immutable data)|BlobAssets]] put all their fields, arrays, and strings **in a single [[contiguous]] memory block** → reading one part brings nearby parts into cache automatically.
+- [[BlobAsset (immutable data)|BlobAssets]] put all their fields, arrays, and strings **in a single [[Contiguous]] memory block** → reading one part brings nearby parts into cache automatically.
 
 --- 
 #### Example
@@ -19,4 +19,4 @@ Imagine you have 1000 enemies and you want to update their health:
 
 ---
 ##### TL;DR in DOTS terms:  
-Cache-friendly = [[contiguous]] data layout → fewer CPU [[Cache miss|cache misses]]→ much faster iteration over large sets of entities.
+Cache-friendly = [[Contiguous]] data layout → fewer CPU [[Cache miss|cache misses]]→ much faster iteration over large sets of entities.

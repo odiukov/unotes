@@ -27,4 +27,4 @@ public struct Health : IComponentData { public int Value; }
       
 - Can be used as [[Tag Component]]
 #### Avoid if
-- Large or rarely used data (wastes [[chunk]] memory).
+- Large or rarely used data (wastes [[Chunk]] memory).

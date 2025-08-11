@@ -3,13 +3,13 @@ tags:
   - component
 ---
 #### Description
-- Components that can be **enabled/disabled** without [[structural changes]].
+- Components that can be **enabled/disabled** without [[Structural changes]].
 #### Example
 ```csharp
 public struct Stunned : IComponentData, IEnableableComponent {}
 ```
 #### Pros
-- No [[structural changes]] when toggling.
+- No [[Structural changes]] when toggling.
       
 - Easy filtering (`.WithDisabled<>, .WithPresent<>, .WithAll<>, WithNone<>`).
 #### Cons
@@ -25,4 +25,4 @@ public struct Stunned : IComponentData, IEnableableComponent {}
 #### Avoid if
 - Large data structures (memory still used when disabled).
       
-- Frequent toggling in [[chunk|chunks]] with mixed states (perf loss).
+- Frequent toggling in [[Chunk|chunks]] with mixed states (perf loss).
