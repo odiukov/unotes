@@ -2,13 +2,13 @@
 tags:
   - component
 ---
-##### Description
+#### Description
 - A way to store **large, [[Immutable|immutable]], and [[Shared|shared]]** data structures in [[Contiguous|contiguous]] native memory.
     
 - Read-only at runtime — you build them once (usually at initialisation) and then share across many entities **without duplicating memory**.
     
 - Stored outside of [[Chunk|chunks]] — referenced by components as `BlobAssetReference<T>`.
-##### Example
+#### Example
 ```csharp
 public struct WeaponData
 {
@@ -35,7 +35,7 @@ var blobRef = builder.CreateBlobAssetReference<WeaponData>(Allocator.Persistent)
 // Don't forget to dispose!
 builder.Dispose();
 ```
-##### Pros
+#### Pros
 - Saves memory by avoiding per-entity duplication of large static data.
     
 - Highly [[Cache-friendly|cache-friendly]] for read-only lookups.
@@ -43,22 +43,22 @@ builder.Dispose();
 - Thread-safe access without locks.
       
 - No structural changes needed to modify "configuration" — just build a new blob and swap references.
-##### Cons
+#### Cons
 - Read-only — if you need to change the data, you must build a new blob asset.
       
 - Building blobs is more verbose than creating normal structs.
       
 - Stored outside chunk memory → requires one pointer indirection to access.
-##### Best use
+#### Best use
 - Large, shared, immutable configuration data:
     - Level layouts.
     - Weapon stats.
     - Animation curves.
     - Dialogue scripts.
 - Precomputed lookup tables.
-##### Avoid if
+#### Avoid if
 - Data changes frequently (better use [[IComponentData]] or [[IBufferElementData (dynamic buffers)]]).
       
 - Data is small and unique per entity (just use a normal component).
-##### Extra tip:
+#### Extra tip:
 `BlobAsset` is often paired with [[ICleanupComponentData]] to free it at the right time, especially if built dynamically at runtime.

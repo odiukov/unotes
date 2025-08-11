@@ -2,29 +2,23 @@
 tags:
   - component
 ---
-**Description**
-
+#### Description
 - Empty [[IComponentData]] or [[ICleanupComponentData]].
       
 - Used only for marking entities.
-
-**Example**
+#### Example
 ```csharp
 public struct PlayerTag : IComponentData {}
 ```
-
-**Pros**
-
+#### Pros
 - Minimal memory overhead.
       
 - Simple filtering.
 
-**Cons**
-
+#### Cons
 - No data, only a flag.
 
-**Best use**
-
+#### Best use
 - Mark entity type (enemy, player, projectile).
       
 - Toggle behavior quickly.

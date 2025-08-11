@@ -2,36 +2,26 @@
 tags:
   - component
 ---
-**Description**
-
+#### Description
 - Data [[shared]] by a group of entities.
       
 - Entities with different values live in **different [[Chunk|chunks]]**.
-
-**Example**
+#### Example
 ```csharp
 public struct RenderMaterial : ISharedComponentData
 {
     public Material Material;
 }
 ```
-
-**Pros**
-
+#### Pros
 - Saves memory for repeated values.
       
 - Useful for grouping and filtering.
-
-**Cons**
-
+#### Cons
 - Frequent changes cause [[chunk rearrangement]] (expensive).
       
 - Slower filtering than [[IComponentData]].
-
-**Best use**
-
+#### Best use
 - Materials, meshes, constant AI parameters.
-
-**Avoid if**
-
+#### Avoid if
 - Frequently changing values or unique per-entity parameters.

@@ -2,37 +2,27 @@
 tags:
   - component
 ---
-**Description**
-
+#### Description
 - Components that **remain** on an entity after `EntityManager.DestroyEntity` is called.
       
 - Removed only **manually** or during world cleanup.
       
 - Used for “final actions” after entity destruction.
-
-**Example**
+#### Example
 ```csharp
 public struct NetworkDisconnectTag : ICleanupComponentData {}
 ```
-
-**Pros**
-
+#### Pros
 - Great for finalisation logic.
       
 - Allows systems to process “entity death” in the next frame.
-
-**Cons**
-
+#### Cons
 - Not automatically removed (must be handled).
       
 - Consumes memory until cleared.
-
-**Best use**
-
+#### Best use
 - Freeing GPU/network resources after entity deletion.
       
 - Post-processing logic (death effects, final events).
-
-**Avoid if**
-
+#### Avoid if
 - Data must disappear instantly on deletion.
