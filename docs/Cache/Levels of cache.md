@@ -1,5 +1,5 @@
 ### Quick breakdown
-Modern CPUs have multiple levels of cache
+##### Modern CPUs have multiple levels of cache
 
 - **L1 cache** → fastest (~1–4 CPU cycles)
     
@@ -8,8 +8,7 @@ Modern CPUs have multiple levels of cache
 - **L3 cache** → slower (~12–50 cycles)
     
 - **RAM** → _much_ slower (~100–300 cycles)
-
-When you access a variable:
+##### When you access a variable:
 
 1. CPU checks if it’s already in **L1 cache** (fastest).
        

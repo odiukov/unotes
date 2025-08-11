@@ -8,7 +8,6 @@ If your data is [[Contiguous|contiguous]] in memory and you process it in order,
 - [[IComponentData]] stores many entities’ components of the same type **back-to-back in a [[chunk|chunks]]** → processing them in a loop hits data that’s already in [[Levels of cache|L1/L2]] cache.
     
 - [[BlobAsset (immutable data)|BlobAssets]] put all their fields, arrays, and strings **in a single [[contiguous]] memory block** → reading one part brings nearby parts into cache automatically.
-
 --- 
 ### Example
 Imagine you have 1000 enemies and you want to update their health:
@@ -18,5 +17,5 @@ Imagine you have 1000 enemies and you want to update their health:
 - **Cache-unfriendly**: Each `Health` is scattered in memory (e.g., as part of different GameObjects in MonoBehaviours). Every access may trigger a separate RAM fetch → slower.
 
 ---
-**TL;DR in DOTS terms**:  
+##### TL;DR in DOTS terms:  
 Cache-friendly = [[contiguous]] data layout → fewer CPU [[Cache miss|cache misses]]→ much faster iteration over large sets of entities.
