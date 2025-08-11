@@ -1,0 +1,2 @@
+Fixed-size (~16 KB) block of memory that stores entities with **the exact same component types** (same [[archetype]]).
+Components are stored in **columns** inside that chunk ([[SoA layout]]), one column per component type.

@@ -1,2 +1,2 @@
-A **cache miss** happens when the CPU tries to read some data, but it’s **not already in the CPU’s cache**, so it has to fetch it from a slower memory layer (like RAM).
+It happens when the CPU tries to read some data, but it’s **not already in the CPU’s cache**, so it has to fetch it from a slower memory layer (like RAM).
 In DOTS terms - your next component is far away in memory (scattered layout), forcing the CPU to pause and wait for RAM. The opposite of this term is [[Cache hit|cache hit]].
