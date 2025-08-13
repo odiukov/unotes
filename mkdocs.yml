@@ -1,28 +1,30 @@
 site_name: Unity cheat sheet
 
 theme:
-    name: 'material'
-    icon:
-      logo: material/matrix
-    palette:
+  features:
+    - navigation.footer
+  name: 'material'
+  icon:
+    logo: material/matrix
+  palette:
 
-    # Light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: pink
-      accent: indigo
-      toggle:
-        icon: material/toggle-switch-off-outline
-        name: Switch to dark mode
+  # Light mode
+  - media: "(prefers-color-scheme: light)"
+    scheme: default
+    primary: pink
+    accent: indigo
+    toggle:
+      icon: material/toggle-switch-off-outline
+      name: Switch to dark mode
 
-    # Dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: pink
-      accent: blue
-      toggle:
-        icon: material/toggle-switch
-        name: Switch to light mode
+  # Dark mode
+  - media: "(prefers-color-scheme: dark)"
+    scheme: slate
+    primary: pink
+    accent: blue
+    toggle:
+      icon: material/toggle-switch
+      name: Switch to light mode
 
 # Extensions
 markdown_extensions:
@@ -51,6 +53,14 @@ markdown_extensions:
       permalink: true
 
 extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/odiukov
+    - icon: fontawesome/brands/instagram
+      link: https://www.instagram.com/o.diukov
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/oleksandrdiukov/
+    
   analytics:
     provider: google
     property: G-PW0C2WHT3Z
@@ -65,6 +75,8 @@ extra:
 plugins:
   - search
   - roamlinks
+
+copyright: Copyright &copy; 2025 Oleksandr Diukov
 
 extra_javascript:
   - https://www.googletagmanager.com/gtag/js?id=GT-KT4XDK2F
