@@ -7,7 +7,7 @@ tags:
     
 - Can be stored **inside the [[Chunk|chunk]]**(in-place) or **outside** in heap memory if too large.
     
-- Uses [[InternalBufferCapacity (IBC)]] to determine how many elements fit in-[[Chunk]] before spilling to heap.
+- Uses [[InternalBufferCapacity (IBC)|Internal Buffer Capacity]] to determine how many elements fit in-[[chunk]] before spilling to heap.
 #### Example
 ```csharp
 [InternalBufferCapacity(4)] // optional attribute
