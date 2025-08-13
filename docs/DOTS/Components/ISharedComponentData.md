@@ -3,7 +3,7 @@ tags:
   - component
 ---
 #### Description
-- Data [[shared]] by a group of entities.
+- Data [[Shared]] by a group of entities.
       
 - Entities with different values live in **different [[Chunk|chunks]]**.
 #### Example
@@ -18,7 +18,7 @@ public struct RenderMaterial : ISharedComponentData
       
 - Useful for grouping and filtering.
 #### Cons
-- Frequent changes cause [[chunk rearrangement]] (expensive).
+- Frequent changes cause [[Chunk rearrangement]] (expensive).
       
 - Slower filtering than [[IComponentData]].
 #### Best use

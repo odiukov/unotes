@@ -1,1 +1,0 @@
-Once built, you cannot modify it ([[Thread-safe|thread-safe]] and [[cache-friendly]]).

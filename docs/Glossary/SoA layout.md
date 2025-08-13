@@ -1,1 +1,0 @@
-**SoA** = **Structure of Arrays** — a way of storing data in memory where **each field of a struct is stored in its own separate [[contiguous]] array** instead of storing the structs one after another.
