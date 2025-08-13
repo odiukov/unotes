@@ -65,7 +65,6 @@ extra:
 plugins:
   - search
   - roamlinks
-  - social
 
 extra_javascript:
   - https://www.googletagmanager.com/gtag/js?id=GT-KT4XDK2F
