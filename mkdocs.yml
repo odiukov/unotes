@@ -2,6 +2,7 @@ site_name: The Dev’s Notes
 
 theme:
   features:
+    - navigation.indexes
     - navigation.footer
   name: 'material'
   icon:
