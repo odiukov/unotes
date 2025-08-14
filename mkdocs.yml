@@ -76,6 +76,7 @@ extra:
 plugins:
   - search
   - roamlinks
+  - tags
 
 copyright: Copyright &copy; 2025 Oleksandr Diukov
 
