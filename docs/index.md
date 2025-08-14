@@ -1,5 +1,5 @@
-> **The Dev’s Notes**  
-> *My personal knowledge base built over a decade of game development.*  
+## The Dev’s Notes
+> *My personal knowledge base built over a decade of game development*  
 >  
 > Here you’ll find:  
 > - 🛠 **Practical DOTS tips**  
