@@ -1,3 +1,3 @@
 # DOTS
 
-[[docs/DOTS/Components/index|Components]]
+[[DOTS/Components/index|Components]]
