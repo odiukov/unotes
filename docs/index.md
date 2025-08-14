@@ -2,7 +2,7 @@
 > *My personal knowledge base built over a decade of game development*  
 >  
 > Here you’ll find:  
-> - 🛠 **Practical [[docs/DOTS/index|DOTS]] tips**  
+> - 🛠 **Practical [[DOTS/index|DOTS]] tips**  
 > - ⚡ **Optimization guides**  
 > - 🧩 **Performance hacks**  
 > - ✅ **Proven solutions from real projects**  
