@@ -1,0 +1,21 @@
+name: Sync Docs to Wiki
+
+# Manual trigger only
+on:
+  workflow_dispatch:
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Sync docs to wiki
+        uses: joeizzard/action-wiki-sync@v1.0.1
+        with:
+          username: github-actions[bot]
+          access_token: ${{ secrets.GITHUB_TOKEN }}
+          wiki_folder: docs
+          commit_message: "Sync documentation from docs/ folder"
