@@ -13,9 +13,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Sync docs to wiki
-        uses: joeizzard/action-wiki-sync@v1.0.1
+        uses: cmbrose/github-docs-to-wiki@v0.20
         with:
-          username: github-actions[bot]
-          access_token: ${{ secrets.GITHUB_TOKEN }}
-          wiki_folder: docs
-          commit_message: "Sync documentation from docs/ folder"
+          githubToken: ${{ secrets.WIKI_TOKEN }}
+          rootDocsFolder: docs/
+          convertRootReadmeToHomePage: true
+          customCommitMessageFormat: "Sync documentation from docs/ folder"
