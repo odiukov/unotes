@@ -55,6 +55,11 @@ Deep dives - internals and optimization
 - [[Sync points]] - Performance killers
 - [[API Gotchas]] - Non-obvious API behaviors
 
+### 🧪 **[[Testing/index|Testing]]**
+Testing strategies - validation and performance
+- [[Unit Testing]] - System logic validation with test worlds
+- [[Performance Testing]] - Automated benchmarking and optimization
+
 ### 📚 **[[Glossary/index|Glossary]]**
 Core concepts and terminology
 - [[Entity]] - Unique identifier
@@ -71,7 +76,8 @@ Core concepts and terminology
 2. **Writing systems?** Learn [[ISystem]] and [[SystemAPI.Query]]
 3. **Need performance?** Read [[Burst]], [[Job]], and [[Sync points]]
 4. **Building content?** Check [[Baking/index|Baking]] section
-5. **Optimization?** Study [[Advanced/index|Advanced]] topics
+5. **Testing code?** Explore [[Testing/index|Testing]] for unit and performance testing
+6. **Optimization?** Study [[Advanced/index|Advanced]] topics
 
 ## Unity Entities 6.5+ Updates
 
