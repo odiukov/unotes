@@ -132,3 +132,69 @@ public void OnUpdate(ref SystemState state)
 - **Sorting determinism** - `[ChunkIndexInQuery] int sortKey` parameter in jobs provides the sort index - pass to ParallelWriter methods as first parameter
 
 - **Parallel vs regular** - use `.AsParallelWriter()` only for jobs scheduled with `ScheduleParallel()`, not for `Schedule()` or main thread execution
+
+- **Temporary entity IDs** - entities created via ECB return placeholder Entity that can be referenced in subsequent commands before playback:
+  ```csharp
+  // Create entity via ECB (returns temporary Entity ID)
+  Entity newEntity = ecb.CreateEntity();
+
+  // Use temporary ID to add components BEFORE playback
+  ecb.AddComponent(newEntity, new Health { Current = 100 });
+  ecb.SetComponent(newEntity, LocalTransform.FromPosition(float3.zero));
+
+  // Set as parent of another entity
+  Entity child = ecb.CreateEntity();
+  ecb.AddComponent(child, new Parent { Value = newEntity });  // References temp ID
+
+  // After playback, temporary IDs become real Entity IDs
+  ecb.Playback(entityManager);
+  // newEntity and child now have real Entity IDs in the World
+  ```
+
+- **Entity remapping** - ECB internally tracks temporary-to-real entity ID mapping during playback:
+  ```csharp
+  // Pattern: Create entity, reference it multiple times
+  Entity tempEntity = ecb.CreateEntity();
+
+  ecb.AddComponent(tempEntity, new MyComponent());
+  ecb.AddComponent(tempEntity, new Health { Current = 100 });
+  ecb.SetComponent(tempEntity, LocalTransform.Identity);
+
+  // All commands referencing tempEntity will target the same real entity after playback
+
+  // Can also use Instantiate
+  Entity tempInstance = ecb.Instantiate(prefabEntity);
+  ecb.SetComponent(tempInstance, new Position { Value = spawnPos });
+  ```
+
+- **Parallel temporary entities** - ParallelWriter with temporary entities requires sort keys:
+  ```csharp
+  public partial struct SpawnJob : IJobEntity
+  {
+      public EntityCommandBuffer.ParallelWriter Ecb;
+
+      private void Execute([ChunkIndexInQuery] int sortKey, in SpawnRequest request)
+      {
+          // Create with sort key
+          Entity tempEntity = Ecb.CreateEntity(sortKey);
+
+          // Reference temp entity with same sort key
+          Ecb.AddComponent(sortKey, tempEntity, new Health { Current = 100 });
+          Ecb.SetComponent(sortKey, tempEntity, LocalTransform.FromPosition(request.Position));
+      }
+  }
+  ```
+
+- **Temporary entity limitations**:
+  ```csharp
+  // CAN do with temporary entities:
+  - AddComponent, RemoveComponent, SetComponent on temp entity
+  - Use as Parent.Value for hierarchy
+  - Store in components on other entities
+  - DestroyEntity on temp entity (cancels creation)
+
+  // CANNOT do with temporary entities:
+  - Query for temp entities (don't exist in World yet)
+  - Use with EntityManager operations (not real entities yet)
+  - Access components via ComponentLookup (no backing data until playback)
+  ```
