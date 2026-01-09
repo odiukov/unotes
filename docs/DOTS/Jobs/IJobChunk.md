@@ -15,11 +15,6 @@ tags:
 
 #### Example
 ```csharp
-using Unity.Entities;
-using Unity.Burst;
-using Unity.Collections;
-using Unity.Mathematics;
-
 // Basic IJobChunk example
 [BurstCompile]
 public partial struct MovementJob : IJobChunk
@@ -99,10 +94,6 @@ public partial struct EnableableComponentJob : IJobChunk
     {
         NativeArray<Health> healths = chunk.GetNativeArray(ref HealthHandle);
 
-        // Check if chunk has any enabled Health components
-        if (!chunk.Has(ref HealthHandle))
-            return;
-
         // Iterate only enabled entities using mask
         var enumerator = new ChunkEntityEnumerator(useEnabledMask, chunkEnabledMask, chunk.Count);
         while (enumerator.NextEntityIndex(out int i))
@@ -112,105 +103,6 @@ public partial struct EnableableComponentJob : IJobChunk
             health.Current += 1f;
             healths[i] = health;
         }
-    }
-}
-
-// IJobChunk with EntityTypeHandle
-[BurstCompile]
-public partial struct EntityAccessJob : IJobChunk
-{
-    [ReadOnly] public EntityTypeHandle EntityHandle;
-    public ComponentTypeHandle<Health> HealthHandle;
-
-    public NativeQueue<Entity>.ParallelWriter DeadEntities;
-
-    public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex,
-                       bool useEnabledMask, in v128 chunkEnabledMask)
-    {
-        NativeArray<Entity> entities = chunk.GetNativeArray(EntityHandle);
-        NativeArray<Health> healths = chunk.GetNativeArray(ref HealthHandle);
-
-        for (int i = 0; i < chunk.Count; i++)
-        {
-            if (healths[i].Current <= 0)
-            {
-                // Queue dead entity for processing
-                DeadEntities.Enqueue(entities[i]);
-            }
-        }
-    }
-}
-
-// IJobChunk with DynamicBuffer
-[BurstCompile]
-public partial struct BufferJob : IJobChunk
-{
-    public BufferTypeHandle<Waypoint> WaypointHandle;
-
-    public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex,
-                       bool useEnabledMask, in v128 chunkEnabledMask)
-    {
-        // Get buffer accessor for chunk
-        BufferAccessor<Waypoint> waypointAccessor = chunk.GetBufferAccessor(ref WaypointHandle);
-
-        for (int i = 0; i < chunk.Count; i++)
-        {
-            // Get buffer for this entity
-            DynamicBuffer<Waypoint> waypoints = waypointAccessor[i];
-
-            // Process buffer elements
-            for (int j = 0; j < waypoints.Length; j++)
-            {
-                Waypoint wp = waypoints[j];
-                // Process waypoint...
-            }
-        }
-    }
-}
-
-// Change filtering in IJobChunk
-[BurstCompile]
-public partial struct ChangeFilterJob : IJobChunk
-{
-    [ReadOnly] public ComponentTypeHandle<LocalTransform> TransformHandle;
-    public uint LastSystemVersion;
-
-    public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex,
-                       bool useEnabledMask, in v128 chunkEnabledMask)
-    {
-        // Check if any transforms in chunk changed since last update
-        if (!chunk.DidChange(ref TransformHandle, LastSystemVersion))
-            return;  // Skip chunk if no changes
-
-        NativeArray<LocalTransform> transforms = chunk.GetNativeArray(ref TransformHandle);
-
-        // Process only changed chunk
-        for (int i = 0; i < chunk.Count; i++)
-        {
-            // React to transform changes...
-        }
-    }
-}
-
-// System with change filtering
-[BurstCompile]
-public partial struct ChangeFilterSystem : ISystem
-{
-    private EntityQuery _query;
-    private ComponentTypeHandle<LocalTransform> _transformHandle;
-
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        _transformHandle.Update(ref state);
-
-        var job = new ChangeFilterJob
-        {
-            TransformHandle = _transformHandle,
-            LastSystemVersion = state.LastSystemVersion
-        };
-
-        state.Dependency = job.ScheduleParallel(_query, state.Dependency);
     }
 }
 ```
@@ -256,20 +148,17 @@ public partial struct ChangeFilterSystem : ISystem
   {
       // Store handles as fields
       private ComponentTypeHandle<Health> _healthHandle;
-      private ComponentTypeHandle<LocalTransform> _transformHandle;
 
       public void OnCreate(ref SystemState state)
       {
           // Create handles in OnCreate
           _healthHandle = state.GetComponentTypeHandle<Health>(isReadOnly: false);
-          _transformHandle = state.GetComponentTypeHandle<LocalTransform>(isReadOnly: true);
       }
 
       public void OnUpdate(ref SystemState state)
       {
           // CRITICAL: Update handles every frame
           _healthHandle.Update(ref state);
-          _transformHandle.Update(ref state);
 
           // Use in job
           new MyJob { HealthHandle = _healthHandle }.ScheduleParallel(query, state.Dependency);
@@ -279,16 +168,9 @@ public partial struct ChangeFilterSystem : ISystem
 
 - **Type handle types:**
   ```csharp
-  // Component access
   ComponentTypeHandle<T>  // Read-write or read-only component
-
-  // Buffer access
   BufferTypeHandle<T>  // DynamicBuffer<T> access
-
-  // Entity access
   EntityTypeHandle  // Get Entity ID from chunk
-
-  // Shared component access
   SharedComponentTypeHandle<T>  // Access shared component value
   ```
 
@@ -315,113 +197,40 @@ public partial struct ChangeFilterSystem : ISystem
 
 - **Enableable component iteration:**
   ```csharp
-  public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex,
-                     bool useEnabledMask, in v128 chunkEnabledMask)
+  if (!useEnabledMask)
   {
-      // Check if should use enabled mask
-      if (!useEnabledMask)
+      // All entities enabled, iterate normally
+      for (int i = 0; i < chunk.Count; i++) { /* ... */ }
+  }
+  else
+  {
+      // Some entities disabled, use enumerator
+      var enumerator = new ChunkEntityEnumerator(useEnabledMask, chunkEnabledMask, chunk.Count);
+      while (enumerator.NextEntityIndex(out int i))
       {
-          // All entities enabled, iterate normally
-          for (int i = 0; i < chunk.Count; i++) { /* ... */ }
-      }
-      else
-      {
-          // Some entities disabled, use enumerator
-          var enumerator = new ChunkEntityEnumerator(useEnabledMask, chunkEnabledMask, chunk.Count);
-          while (enumerator.NextEntityIndex(out int i))
-          {
-              // Only processes enabled entities
-          }
+          // Only processes enabled entities
       }
   }
   ```
 
 - **Change detection:**
   ```csharp
-  public void Execute(in ArchetypeChunk chunk, ...)
+  // Did component change since last system version?
+  if (chunk.DidChange(ref transformHandle, LastSystemVersion))
   {
-      // Did component change since last system version?
-      if (chunk.DidChange(ref transformHandle, LastSystemVersion))
-      {
-          // Process changed chunk
-      }
-
-      // Check multiple components
-      bool healthChanged = chunk.DidChange(ref healthHandle, LastSystemVersion);
-      bool transformChanged = chunk.DidChange(ref transformHandle, LastSystemVersion);
-
-      if (healthChanged || transformChanged)
-      {
-          // React to changes
-      }
+      // Process changed chunk
   }
+  ```
+
+- **unfilteredChunkIndex parameter** - use for thread-safe writes to parallel arrays:
+  ```csharp
+  results[unfilteredChunkIndex] = computedValue;
   ```
 
 - **Scheduling methods:**
   ```csharp
-  // Single-threaded execution
-  JobHandle handle = job.Schedule(query, inputDeps);
-
-  // Parallel execution (recommended)
-  JobHandle handle = job.ScheduleParallel(query, inputDeps);
-
-  // Parallel with custom batch count
-  JobHandle handle = job.ScheduleParallel(query, batchesPerChunk: 1, inputDeps);
-  ```
-
-- **unfilteredChunkIndex parameter:**
-  ```csharp
-  public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, ...)
-  {
-      // Use unfilteredChunkIndex for thread-safe writes to parallel arrays
-      // Each chunk gets unique index, safe for NativeArray.ParallelWriter
-
-      results[unfilteredChunkIndex] = computedValue;
-
-      // Or for NativeQueue.ParallelWriter sorting key
-      queue.Enqueue(entity, unfilteredChunkIndex);
-  }
-  ```
-
-- **Checking if chunk has component:**
-  ```csharp
-  public void Execute(in ArchetypeChunk chunk, ...)
-  {
-      // Check if chunk archetype includes component
-      if (chunk.Has(ref healthHandle))
-      {
-          NativeArray<Health> healths = chunk.GetNativeArray(ref healthHandle);
-          // Process...
-      }
-
-      // Useful for optional components in query
-  }
-  ```
-
-- **Read-only vs read-write handles:**
-  ```csharp
-  // OnCreate
-  var readOnlyHandle = state.GetComponentTypeHandle<Health>(isReadOnly: true);
-  var readWriteHandle = state.GetComponentTypeHandle<Health>(isReadOnly: false);
-
-  // Read-only allows multiple systems to read in parallel
-  // Read-write creates dependency, only one system can write at a time
-  ```
-
-- **IJobChunk vs IJobEntity:**
-  ```csharp
-  // Use IJobEntity for:
-  - Simple per-entity processing
-  - Prototype/development speed
-  - SystemAPI convenience methods
-  - Cleaner, more maintainable code
-
-  // Use IJobChunk for:
-  - Maximum performance (profiled bottleneck)
-  - Enableable component filtering
-  - Change detection optimization
-  - Chunk-wide batch operations
-  - Custom iteration patterns
+  JobHandle handle = job.Schedule(query, inputDeps);  // Single-threaded
+  JobHandle handle = job.ScheduleParallel(query, inputDeps);  // Parallel (recommended)
   ```
 
 - **Common mistakes:**
@@ -439,16 +248,22 @@ public partial struct ChangeFilterSystem : ISystem
       _transformHandle.Update(ref state);  // Update first!
       new MyJob { Handle = _transformHandle }.ScheduleParallel(query, state.Dependency);
   }
+  ```
 
-  // WRONG: Modifying chunk.Count
-  for (int i = 0; i < chunk.Count; i++)  // chunk.Count is read-only, don't cache incorrectly
+- **IJobChunk vs IJobEntity:**
+  ```csharp
+  // Use IJobEntity for:
+  - Simple per-entity processing
+  - Prototype/development speed
+  - SystemAPI convenience methods
+  - Cleaner, more maintainable code
 
-  // WRONG: Using chunk data outside Execute
-  NativeArray<Health> healths;  // Field in job struct
-  public void Execute(in ArchetypeChunk chunk, ...)
-  {
-      healths = chunk.GetNativeArray(ref healthHandle);  // Don't store! Only valid in Execute
-  }
+  // Use IJobChunk for:
+  - Maximum performance (profiled bottleneck)
+  - Enableable component filtering
+  - Change detection optimization
+  - Chunk-wide batch operations
+  - Custom iteration patterns
   ```
 
 ## See Also

@@ -33,42 +33,25 @@ EntityQuery query2 = new EntityQueryBuilder(Allocator.Temp)
 
 **Common operations:**
 ```csharp
-// Get entity count
 int count = query.CalculateEntityCount();
-
-// Get entities
 NativeArray<Entity> entities = query.ToEntityArray(Allocator.Temp);
-
-// Get component arrays
 NativeArray<Health> healths = query.ToComponentDataArray<Health>(Allocator.Temp);
-
-// Iterate through chunks
-foreach (ArchetypeChunk chunk in query.ToArchetypeChunkArray(Allocator.Temp))
-{
-    // Process chunk...
-}
 ```
 
 **In systems:**
 ```csharp
-[BurstCompile]
 public partial struct HealthSystem : ISystem
 {
     EntityQuery query;
 
-    [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        // Create query once
         query = state.GetEntityQuery(typeof(Health), typeof(Transform));
     }
 
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // Use query for processing
-        foreach (var (health, transform) in
-            SystemAPI.Query<RefRW<Health>, RefRO<Transform>>())
+        foreach (var (health, transform) in SystemAPI.Query<RefRW<Health>, RefRO<Transform>>())
         {
             // Process entities...
         }

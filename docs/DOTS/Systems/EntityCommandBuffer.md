@@ -3,7 +3,7 @@ tags:
   - system
 ---
 #### Description
-- **Deferred command recording system** that queues [[Structural changes]] (create entity, add/remove components, destroy entity) for later playback on the main thread
+- **Deferred command recording system** that queues [[Structural changes]] (create entity, add/remove components, destroy entity) for later playback on main thread
 
 - Necessary because [[Structural changes]] cannot happen during job execution - ECB records commands during parallel jobs, plays back on main thread at specific [[Sync points]]
 
@@ -94,7 +94,7 @@ public void OnUpdate(ref SystemState state)
 - **[[Burst]] compatible** - can be used in Burst-compiled jobs
 
 #### Cons
-- **Memory overhead** - commands are stored in memory until playback, large batches can allocate significantly
+- **Memory overhead** - commands stored in memory until playback, large batches can allocate significantly
 
 - **Delayed effect** - changes don't apply until playback, can't query new entities immediately
 
@@ -123,13 +123,13 @@ public void OnUpdate(ref SystemState state)
   - `EndSimulationEntityCommandBufferSystem` - plays back at end of simulation, after all gameplay systems
   - `BeginPresentationEntityCommandBufferSystem` - plays back before rendering
 
-- **Singleton pattern** - `SystemAPI.GetSingleton<ECBSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged)` is the preferred way to get ECB
+- **Singleton pattern** - `SystemAPI.GetSingleton<ECBSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged)` is preferred way to get ECB
 
 - **PlaybackPolicy** - use `EntityCommandBuffer.PlaybackPolicy.SinglePlayback` for manual ECBs that should only play once
 
 - **Multiple ECBs strategy** - common pattern: use BeginInitializationECB for creation/adding components, BeginSimulationECB for destruction to ensure proper execution order
 
-- **Sorting determinism** - `[ChunkIndexInQuery] int sortKey` parameter in jobs provides the sort index - pass to ParallelWriter methods as first parameter
+- **Sorting determinism** - `[ChunkIndexInQuery] int sortKey` parameter in jobs provides sort index - pass to ParallelWriter methods as first parameter
 
 - **Parallel vs regular** - use `.AsParallelWriter()` only for jobs scheduled with `ScheduleParallel()`, not for `Schedule()` or main thread execution
 
@@ -147,41 +147,18 @@ public void OnUpdate(ref SystemState state)
   ecb.AddComponent(child, new Parent { Value = newEntity });  // References temp ID
 
   // After playback, temporary IDs become real Entity IDs
-  ecb.Playback(entityManager);
-  // newEntity and child now have real Entity IDs in the World
-  ```
-
-- **Entity remapping** - ECB internally tracks temporary-to-real entity ID mapping during playback:
-  ```csharp
-  // Pattern: Create entity, reference it multiple times
-  Entity tempEntity = ecb.CreateEntity();
-
-  ecb.AddComponent(tempEntity, new MyComponent());
-  ecb.AddComponent(tempEntity, new Health { Current = 100 });
-  ecb.SetComponent(tempEntity, LocalTransform.Identity);
-
-  // All commands referencing tempEntity will target the same real entity after playback
-
-  // Can also use Instantiate
-  Entity tempInstance = ecb.Instantiate(prefabEntity);
-  ecb.SetComponent(tempInstance, new Position { Value = spawnPos });
   ```
 
 - **Parallel temporary entities** - ParallelWriter with temporary entities requires sort keys:
   ```csharp
-  public partial struct SpawnJob : IJobEntity
+  private void Execute([ChunkIndexInQuery] int sortKey, in SpawnRequest request)
   {
-      public EntityCommandBuffer.ParallelWriter Ecb;
+      // Create with sort key
+      Entity tempEntity = Ecb.CreateEntity(sortKey);
 
-      private void Execute([ChunkIndexInQuery] int sortKey, in SpawnRequest request)
-      {
-          // Create with sort key
-          Entity tempEntity = Ecb.CreateEntity(sortKey);
-
-          // Reference temp entity with same sort key
-          Ecb.AddComponent(sortKey, tempEntity, new Health { Current = 100 });
-          Ecb.SetComponent(sortKey, tempEntity, LocalTransform.FromPosition(request.Position));
-      }
+      // Reference temp entity with same sort key
+      Ecb.AddComponent(sortKey, tempEntity, new Health { Current = 100 });
+      Ecb.SetComponent(sortKey, tempEntity, LocalTransform.FromPosition(request.Position));
   }
   ```
 

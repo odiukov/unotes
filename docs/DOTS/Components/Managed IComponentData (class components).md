@@ -3,11 +3,11 @@ tags:
   - component
 ---
 #### Description
-- Managed components are **class-based** [[IComponentData]] that can store managed references like `GameObject`, `Texture2D`, or other C# objects
+- **Class-based** [[IComponentData]] that can store managed references like `GameObject`, `Texture2D`, or other C# objects
 
-- Stored **outside the chunk** in a separate managed array, breaking the [[SoA layout]] and [[Cache-friendly]] architecture of regular components
+- Stored **outside the chunk** in separate managed array, breaking [[SoA layout]] and [[Cache-friendly]] architecture
 
-- Useful for **hybrid workflows** where you need to bridge between DOTS and traditional Unity systems (GameObjects, MonoBehaviours, Assets)
+- Useful for **hybrid workflows** bridging between DOTS and traditional Unity systems (GameObjects, MonoBehaviours, Assets)
 
 - Cannot be used with [[Burst]] or in jobs - requires `SystemAPI.ManagedAPI` for access in systems
 
@@ -35,7 +35,6 @@ public partial struct PresentationSystem : ISystem
         foreach (var presentationGo in
             SystemAPI.Query<PresentationGo>())
         {
-            // Work with managed data
             var instance = Object.Instantiate(presentationGo.Prefab);
         }
     }
@@ -72,11 +71,11 @@ public partial struct PresentationSystem : ISystem
 
 - **You need parallel jobs** - managed data can't be accessed in [[Burst]] jobs, use [[IComponentData]] with blittable types
 
-- **The data can be baked** - if you can convert the data during baking to value types, do it instead of storing managed references
+- **The data can be baked** - if you can convert data during baking to value types, do it instead
 
 #### Extra tip
-- **Cleanup pattern** - use [[ICleanupComponentData]] to track when managed component is removed and clean up GameObject instances to prevent leaks
+- **Cleanup pattern** - use [[ICleanupComponentData]] to track when managed component removed and clean up GameObject instances to prevent leaks
 
-- **Minimize usage** - use managed components sparingly as a last resort - they negate most DOTS performance benefits
+- **Minimize usage** - use managed components sparingly as last resort - they negate most DOTS performance benefits
 
 - **Companion GameObject pattern** - common pattern: managed component stores GameObject reference, separate system syncs transform from [[Entity]] to GameObject using `UnityEngineComponent<Transform>`

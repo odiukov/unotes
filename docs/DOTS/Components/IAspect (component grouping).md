@@ -16,13 +16,13 @@ tags:
 > Existing aspect code will continue to work but is not recommended for new projects.
 
 #### Description
-- **Wrapper for a set of components** that together provide specific behavior, allowing code organization and reusability across systems and jobs
+- **Wrapper for a set of components** providing specific behavior, allowing code organization and reusability across systems and jobs
 
-- Defined as `readonly partial struct` implementing `IAspect`, containing [[RefRO and RefRW|RefRO/RefRW]] fields for component access and methods that operate on those components
+- Defined as `readonly partial struct` implementing `IAspect`, containing [[RefRO and RefRW|RefRO/RefRW]] fields for component access and methods operating on those components
 
-- **Circumvents query limitations** - useful when a single query would exceed the maximum number of component types
+- **Circumvents query limitations** - useful when a single query would exceed maximum component types
 
-- Automatically generates query code - when you query for an aspect, Unity generates the underlying [[Entity|entity]] query for all required components
+- Automatically generates query code - when you query for an aspect, Unity generates underlying [[Entity|entity]] query for all required components
 
 #### Example
 ```csharp
@@ -40,10 +40,8 @@ public readonly partial struct ProjectileAspect : IAspect
     // Methods operating on the grouped components
     public void Move(float time, ComponentLookup<LocalToWorld> positions)
     {
-        // Access read-only data with .ValueRO
         if (_guided.ValueRO.Enabled && positions.HasComponent(_target.ValueRO.Value))
         {
-            // Access read-write data with .ValueRW
             _transform.ValueRW.Rotation = TransformHelpers.LookAtRotation(
                 _transform.ValueRW.Position,
                 positions[_target.ValueRO.Value].Position,
@@ -67,6 +65,12 @@ public partial struct ProjectileMoveJob : IJobEntity
         projectile.Move(DeltaTime, Positions);
     }
 }
+
+// Use in SystemAPI.Query
+foreach (var projectile in SystemAPI.Query<ProjectileAspect>())
+{
+    projectile.Move(deltaTime, positions);
+}
 ```
 
 #### Pros
@@ -76,7 +80,7 @@ public partial struct ProjectileMoveJob : IJobEntity
 
 - **Cleaner queries** - `SystemAPI.Query<ProjectileAspect>()` instead of multi-component tuples
 
-- **Bypasses query limits** - aspects don't count toward the maximum component types per query
+- **Bypasses query limits** - aspects don't count toward maximum component types per query
 
 - **Compile-time safety** - ensures all required components are present in queries
 
@@ -88,18 +92,18 @@ public partial struct ProjectileMoveJob : IJobEntity
 - **Learning curve** - requires understanding RefRO/RefRW access patterns
 
 #### Best use
-- **Complex entity behaviors** - when an entity's behavior requires 4+ components working together (movement, combat, AI, etc.)
+- **Complex entity behaviors** - when entity's behavior requires 4+ components working together (movement, combat, AI)
 
-- **Reusable logic** - when the same component combination and behavior is used in multiple systems
+- **Reusable logic** - when same component combination and behavior used in multiple systems
 
 - **Large queries** - when direct component queries would exceed Unity's per-query component limit
 
 #### Avoid if
 - **Simple single-component operations** - use direct [[IComponentData]] access with `SystemAPI.Query<MyComponent>()`
 
-- **Tag components are involved** - aspects don't support tags, use regular queries with `WithAll<TagComponent>()`
+- **Tag components involved** - aspects don't support tags, use regular queries with `WithAll<TagComponent>()`
 
-- **One-off behavior** - if the logic is only used in one place, direct component access is simpler
+- **One-off behavior** - if logic only used in one place, direct component access is simpler
 
 #### Extra tip
 - **Nested aspects** - aspects can contain other aspects as fields for hierarchical component grouping
@@ -108,7 +112,7 @@ public partial struct ProjectileMoveJob : IJobEntity
 
 - **DynamicBuffer support** - aspects can contain `DynamicBuffer<T>` fields (use `[ReadOnly]` attribute for read-only buffers)
 
-- **Access patterns** - use `.ValueRO` for read-only access, `.ValueRW` for read-write access (analogous to `ref readonly` and `ref`)
+- **Access patterns** - use `.ValueRO` for read-only access, `.ValueRW` for read-write access
 
 - **IEnableableComponent support** - use `EnabledRefRO` and `EnabledRefRW` fields to access enabled state of [[IEnableableComponent (toggleable components)|enableable components]]
 
@@ -143,51 +147,34 @@ public static class ProjectileHelpers
 }
 
 // Use in IJobEntity
-public partial struct ProjectileMoveJob : IJobEntity
+private void Execute(
+    ref LocalTransform transform,
+    in Speed speed,
+    in Guided guided,
+    in Target target)
 {
-    public float DeltaTime;
-    [ReadOnly] public ComponentLookup<LocalToWorld> Positions;
-
-    private void Execute(
-        ref LocalTransform transform,
-        in Speed speed,
-        in Guided guided,
-        in Target target)
-    {
-        ProjectileHelpers.Move(ref transform, speed, guided, target, DeltaTime, Positions);
-    }
+    ProjectileHelpers.Move(ref transform, speed, guided, target, DeltaTime, Positions);
 }
 ```
 
 ### Alternative 2: Direct Component Access in SystemAPI.Query
 ```csharp
-[BurstCompile]
-public partial struct ProjectileMoveSystem : ISystem
+// Direct multi-component query instead of aspect
+foreach (var (transform, speed, guided, target) in
+    SystemAPI.Query<RefRW<LocalTransform>, RefRO<Speed>, RefRO<Guided>, RefRO<Target>>())
 {
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
+    if (guided.ValueRO.Enabled && positions.HasComponent(target.ValueRO.Value))
     {
-        var positions = SystemAPI.GetComponentLookup<LocalToWorld>(true);
-        float dt = SystemAPI.Time.DeltaTime;
-
-        // Direct multi-component query instead of aspect
-        foreach (var (transform, speed, guided, target) in
-            SystemAPI.Query<RefRW<LocalTransform>, RefRO<Speed>, RefRO<Guided>, RefRO<Target>>())
-        {
-            if (guided.ValueRO.Enabled && positions.HasComponent(target.ValueRO.Value))
-            {
-                transform.ValueRW.Rotation = TransformHelpers.LookAtRotation(
-                    transform.ValueRO.Position,
-                    positions[target.ValueRO.Value].Position,
-                    transform.ValueRO.Up());
-            }
-            transform.ValueRW.Position += speed.ValueRO.value * dt * transform.ValueRO.Forward();
-        }
+        transform.ValueRW.Rotation = TransformHelpers.LookAtRotation(
+            transform.ValueRO.Position,
+            positions[target.ValueRO.Value].Position,
+            transform.ValueRO.Up());
     }
+    transform.ValueRW.Position += speed.ValueRO.value * dt * transform.ValueRO.Forward();
 }
 ```
 
-### Alternative 3: Component-Based Methods
+### Alternative 3: Component-Based Extension Methods
 ```csharp
 // Extension methods on components
 public static class LocalTransformExtensions

@@ -15,10 +15,6 @@ tags:
 
 #### Example
 ```csharp
-using Unity.Collections;
-using Unity.Jobs;
-using Unity.Burst;
-
 [BurstCompile]
 public partial struct ProcessDataSystem : ISystem
 {
@@ -68,27 +64,6 @@ public struct MoveJob : IJob
         }
     }
 }
-
-// Example: Allocator types
-public void AllocatorExamples()
-{
-    // Allocator.Persistent - for long-lived data (must dispose manually)
-    var persistent = new NativeArray<int>(100, Allocator.Persistent);
-    // ... use across multiple frames ...
-    persistent.Dispose();
-
-    // Allocator.Temp - fastest, auto-disposed at end of frame
-    // CANNOT be passed to jobs
-    var temp = new NativeArray<int>(100, Allocator.Temp);
-    // ... use within single frame on main thread ...
-    // Auto-disposed, but can call Dispose() explicitly
-
-    // Allocator.TempJob - thread-safe for jobs, manual disposal required
-    var tempJob = new NativeArray<int>(100, Allocator.TempJob);
-    var job = new MyJob { Data = tempJob }.Schedule();
-    job.Complete();
-    tempJob.Dispose();  // Must dispose manually
-}
 ```
 
 #### Pros
@@ -131,10 +106,7 @@ public void AllocatorExamples()
 
 - **Thread-safe allocators mandatory for jobs** - only `Allocator.TempJob` and `Allocator.Persistent` are thread-safe. Never pass `Allocator.Temp` collections to jobs
 
-- **[ReadOnly] attribute enables parallelism** - mark fields `[ReadOnly]` when jobs only read data, allowing multiple jobs to access same collection concurrently:
-  ```csharp
-  [ReadOnly] public NativeArray<float> SharedInputData;
-  ```
+- **[ReadOnly] attribute enables parallelism** - mark fields `[ReadOnly]` when jobs only read data, allowing multiple jobs to access same collection concurrently
 
 - **Dispose with job dependencies** - use `Dispose(JobHandle)` to schedule disposal after job completes, avoiding manual completion:
   ```csharp

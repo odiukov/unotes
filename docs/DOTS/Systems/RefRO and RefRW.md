@@ -43,25 +43,18 @@ public readonly partial struct ProjectileAspect : IAspect
     // Readonly fields in aspect
     readonly RefRO<Guided> _guided;
     readonly RefRO<Speed> _speed;
-    readonly RefRO<Target> _target;
 
     // Read-write field
     readonly RefRW<LocalTransform> _transform;
 
-    public void Move(float deltaTime, ComponentLookup<LocalToWorld> positions)
+    public void Move(float deltaTime)
     {
         // Read with .ValueRO
-        if (_guided.ValueRO.Enabled && positions.HasComponent(_target.ValueRO.Value))
+        if (_guided.ValueRO.Enabled)
         {
             // Write with .ValueRW
-            _transform.ValueRW.Rotation = TransformHelpers.LookAtRotation(
-                _transform.ValueRW.Position,
-                positions[_target.ValueRO.Value].Position,
-                _transform.ValueRW.Up());
+            _transform.ValueRW.Position += _speed.ValueRO.Value * deltaTime;
         }
-
-        // Modify position
-        _transform.ValueRW.Position += _speed.ValueRO.Value * deltaTime * _transform.ValueRW.Forward();
     }
 }
 
@@ -104,7 +97,7 @@ public partial struct DamageJob : IJobEntity
 - **Read-mostly data** - use `RefRO` when you only need to read, helps job system optimize parallel execution
 
 #### Avoid if
-- **IJobEntity Execute parameters** - prefer `ref T` and `in T` syntax for cleaner, more familiar code in job Execute methods
+- **IJobEntity Execute parameters** - prefer `ref T` and `in T` syntax for cleaner code in job Execute methods
 
 - **Simple read access** - if you're only reading one field once, `in T` may be clearer than `RefRO<T>`
 
@@ -123,4 +116,4 @@ public partial struct DamageJob : IJobEntity
 
 - **EnabledRefRO / EnabledRefRW** - similar concept for [[IEnableableComponent (toggleable components)|enableable components]], used to access enabled state instead of component data
 
-- **Performance consideration** - `RefRO` allows Unity to run multiple jobs in parallel that read the same component, `RefRW` requires exclusive access
+- **Performance consideration** - `RefRO` allows Unity to run multiple jobs in parallel that read same component, `RefRW` requires exclusive access

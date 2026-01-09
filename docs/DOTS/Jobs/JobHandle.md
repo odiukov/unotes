@@ -15,10 +15,6 @@ tags:
 
 #### Example
 ```csharp
-using Unity.Jobs;
-using Unity.Collections;
-using Unity.Burst;
-
 [BurstCompile]
 public struct GenerateDataJob : IJob
 {
@@ -78,26 +74,15 @@ public void ChainJobs()
 // Combining multiple dependencies
 public void CombineDependencies()
 {
-    var data1 = new NativeArray<int>(100, Allocator.TempJob);
-    var data2 = new NativeArray<int>(100, Allocator.TempJob);
-    var result = new NativeArray<int>(100, Allocator.TempJob);
-
     JobHandle job1 = new JobA { Data = data1 }.Schedule();
     JobHandle job2 = new JobB { Data = data2 }.Schedule();
 
     // Combine multiple handles - new job waits for BOTH to complete
     JobHandle combined = JobHandle.CombineDependencies(job1, job2);
 
-    JobHandle finalJob = new JobC
-    {
-        Input1 = data1,
-        Input2 = data2,
-        Output = result
-    }.Schedule(combined);
+    JobHandle finalJob = new JobC().Schedule(combined);
 
     finalJob.Complete();
-
-    // Cleanup...
 }
 ```
 
@@ -167,11 +152,7 @@ public void CombineDependencies()
 
 - **Avoid premature Complete()** - each `Complete()` is a [[Sync points|sync point]] that forces the main thread to wait. Delay completing until you actually need the results
 
-- **Read-only enables parallelism** - when multiple jobs need same input data, mark it `[ReadOnly]` so they can run in parallel instead of sequentially:
-  ```csharp
-  JobHandle readA = new ReadJob { Data = sharedData }.Schedule();
-  JobHandle readB = new ReadJob { Data = sharedData }.Schedule();  // Parallel!
-  ```
+- **Read-only enables parallelism** - when multiple jobs need same input data, mark it `[ReadOnly]` so they can run in parallel instead of sequentially
 
 - **Safety handle reservation** - JobHandles "reserve" safety handles on [[NativeCollections]] until `Complete()` is called, preventing conflicting access during execution
 

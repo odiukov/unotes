@@ -30,73 +30,23 @@ EntityManager.AddComponent<NewComponent>(singleEntity);
 
 **The Gotcha:**
 ```csharp
-// Scenario: Adding component to 1 entity at a time using EntityQuery
+// Adding component to 1 entity per frame using EntityQuery
 var query = SystemAPI.QueryBuilder().WithAll<Enemy>().Build();
 
-// Frame 1: 1 enemy entity matches query in Chunk A
+// Frame 1: 1 enemy matches, Chunk A archetype changed to [Enemy, Dead]
 EntityManager.AddComponent<Dead>(query);
-// Chunk A archetype changed to [Enemy, Dead]
-// Chunk A now has 1 entity
 
-// Frame 2: New enemy spawns in Chunk B (archetype [Enemy])
-// Again, 1 entity matches query
+// Frame 2: New enemy in Chunk B, archetype changed to [Enemy, Dead]
 EntityManager.AddComponent<Dead>(query);
-// Chunk B archetype changed to [Enemy, Dead]
-// Chunk B now has 1 entity
 
-// Problem: Now have 2 chunks with 1 entity each!
-// Normal chunk capacity is 128 entities
-// Memory: 1.5% utilized (2/256)
-// Iteration performance: Terrible (jumping between chunks)
-
+// Problem: 2 chunks with 1 entity each! (normal capacity: 128 entities)
 // After 100 frames: 100 chunks with 1 entity each = disaster
 ```
 
-**Appropriate Use Cases:**
+**When to Use:**
 
-✅ **Good: One-time bulk operations**
-```csharp
-// Post-processing a SubScene after loading
-var allEntities = SystemAPI.QueryBuilder().WithAll<FromSubScene>().Build();
-EntityManager.AddComponent<Initialized>(allEntities);
-// Efficient: Processes thousands of entities, modifies chunks in bulk
-```
-
-✅ **Good: Large batch operations**
-```csharp
-// Disabling all enemies at once
-var allEnemies = SystemAPI.QueryBuilder().WithAll<Enemy>().Build();
-if (allEnemies.CalculateEntityCountWithoutFiltering() > 100)
-{
-    EntityManager.AddComponent<Disabled>(allEnemies);
-    // Efficient: Many entities affected, chunk modification is faster
-}
-```
-
-❌ **Bad: Incremental processing**
-```csharp
-// Processing entities one at a time over many frames
-var deadEnemies = SystemAPI.QueryBuilder()
-    .WithAll<Enemy, Health>()
-    .WithNone<Dead>()
-    .Build();
-
-// Every frame, a few enemies die
-EntityManager.AddComponent<Dead>(deadEnemies);
-// Creates empty chunks! Use EntityCommandBuffer instead
-```
-
-❌ **Bad: Instantiated entity post-processing**
-```csharp
-// Post-processing spawned entities
-var newlySpawned = SystemAPI.QueryBuilder()
-    .WithAll<Spawned>()
-    .WithNone<Initialized>()
-    .Build();
-
-EntityManager.AddComponent<Initialized>(newlySpawned);
-// Bad: Spawned entities trickle in, creates empty chunks
-```
+✅ **Good:** One-time bulk operations on 100+ entities (SubScene post-processing)
+❌ **Bad:** Incremental per-frame additions (use EntityCommandBuffer instead)
 
 **Better Alternatives:**
 
@@ -142,61 +92,18 @@ EntityManager.Instantiate(prefabEntity, instances);
 
 **The Gotcha:**
 ```csharp
-// Prefab setup: Character entity with child entities
-// Prefab Entity has LinkedEntityGroup:
-//   [0] Character (root)
-//   [1] Weapon (child)
-//   [2] Shield (child)
-//   [3] HealthBar (child)
+// Prefab with LinkedEntityGroup: [Character, Weapon, Shield, HealthBar]
 
-// Using NativeArray overload
 var characters = new NativeArray<Entity>(5, Allocator.Temp);
 EntityManager.Instantiate(characterPrefab, characters);
 
-// Result: 5 character root entities, NO weapons, shields, or health bars!
-// LinkedEntityGroup was ignored
+// Result: 5 character root entities, NO weapons/shields/healthbars!
 ```
 
-**Appropriate Use Cases:**
+**When to Use:**
 
-✅ **Good: Simple entities without children**
-```csharp
-// Spawning bullets (no children)
-var bullets = new NativeArray<Entity>(100, Allocator.Temp);
-EntityManager.Instantiate(bulletPrefab, bullets);
-// Safe: Bullet archetype has no LinkedEntityGroup
-
-// How to verify safety:
-if (!EntityManager.HasComponent<LinkedEntityGroup>(prefabEntity))
-{
-    // Safe to use NativeArray overload
-    EntityManager.Instantiate(prefabEntity, outputArray);
-}
-```
-
-✅ **Good: Performance-critical spawning of known-simple entities**
-```csharp
-// Particle system spawning 1000 particles (verified to have no children)
-var particles = new NativeArray<Entity>(1000, Allocator.TempJob);
-EntityManager.Instantiate(particlePrefab, particles);
-```
-
-❌ **Bad: Prefabs from baking (unknown structure)**
-```csharp
-// Character prefab baked from GameObject
-var instances = new NativeArray<Entity>(10, Allocator.Temp);
-EntityManager.Instantiate(bakedCharacterPrefab, instances);
-// DANGER: Baked prefabs often have child entities!
-// Weapons, equipment, visual elements will be missing
-```
-
-❌ **Bad: Any prefab with hierarchy**
-```csharp
-// Enemy prefab with weapon attachments
-var enemies = new NativeArray<Entity>(50, Allocator.Temp);
-EntityManager.Instantiate(enemyPrefab, enemies);
-// Enemies spawn without weapons!
-```
+✅ **Good:** Simple entities without children (bullets, particles)
+❌ **Bad:** Baked prefabs or prefabs with hierarchy (use normal overload)
 
 **Better Alternatives:**
 

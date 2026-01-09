@@ -14,11 +14,6 @@ tags:
 
 #### Example
 ```csharp
-using Unity.Jobs;
-using Unity.Collections;
-using Unity.Burst;
-using Unity.Mathematics;
-
 [BurstCompile]
 public struct FindClosestTargetJob : IJobParallelFor
 {
@@ -118,7 +113,6 @@ public void FindClosestTargets()
   - Single-threaded [[IJob]] without Burst: ~30ms
   - Single-threaded [[IJob]] with [[Burst]]: ~1.5ms
   - `IJobParallelFor` with 16 cores: ~17ms elapsed for 10,000 entities
-  - Optimized algorithm (sorting + binary search): ~0.5ms
 
 - **Batch size guidelines** - start with 32-64 and profile. Larger batches (128+) reduce overhead for heavy computations, smaller batches (16-32) increase parallelism for lightweight operations
 

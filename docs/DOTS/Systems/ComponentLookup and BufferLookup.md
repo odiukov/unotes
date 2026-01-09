@@ -3,7 +3,7 @@ tags:
   - system
 ---
 #### Description
-- **Random access containers** that provide access to component/buffer data of arbitrary entities, similar to a dictionary lookup by [[Entity]] ID
+- **Random access containers** providing access to component/buffer data of arbitrary entities, similar to dictionary lookup by [[Entity]] ID
 
 - `ComponentLookup<T>` provides random access to [[IComponentData]], `BufferLookup<T>` provides random access to [[IBufferElementData (dynamic buffers)|DynamicBuffer]]
 
@@ -125,20 +125,20 @@ public partial struct EnemyCollisionSystem : ISystem
 - **Cross-archetype relationships** - when entities in different [[Archetype|archetypes]] need to communicate
 
 #### Avoid if
-- **Sequential iteration** - if processing all entities with component T, use [[SystemAPI.Query]] or [[IJobEntity]] instead for better performance
+- **Sequential iteration** - if processing all entities with component T, use [[SystemAPI.Query]] or [[IJobEntity]] for better performance
 
-- **Same-chunk access** - if accessing components on the same entity being processed, use direct component access instead
+- **Same-chunk access** - if accessing components on same entity being processed, use direct component access
 
 - **No entity references** - if you don't have [[Entity]] IDs to look up, you don't need lookups
 
 #### Extra tip
-- **Always update** - call `lookup.Update(ref state)` at the start of every `OnUpdate` before scheduling jobs - entity data locations can change between frames
+- **Always update** - call `lookup.Update(ref state)` at start of every `OnUpdate` before scheduling jobs - entity data locations can change between frames
 
 - **Read-only flag** - pass `true` for read-only access (`GetComponentLookup<T>(true)`), `false` for read-write (`GetComponentLookup<T>(false)`)
 
 - **[ReadOnly] attribute** - mark read-only lookups in jobs with `[ReadOnly]` attribute for parallel job safety and documentation
 
-- **HasComponent/HasBuffer checks** - always check `lookup.HasComponent(entity)` before accessing to avoid errors when entity doesn't have the component
+- **HasComponent/HasBuffer checks** - always check `lookup.HasComponent(entity)` before accessing to avoid errors when entity doesn't have component
 
 - **TryGetComponent pattern** - use `lookup.TryGetComponent(entity, out T component)` for safe access that returns bool instead of throwing
 
@@ -153,7 +153,6 @@ public partial struct EnemyCollisionSystem : ISystem
   if (lookup.TryGetRefRW(entity, out RefRW<Health> healthRef))
       healthRef.ValueRW.Current = 100;
   ```
-  Combines existence check and retrieval in one call, improving safety and clarity
 
 - **IsComponentEnabled** - for [[IEnableableComponent (toggleable components)|enableable components]], check `lookup.IsComponentEnabled(entity)` to see if component is enabled
 

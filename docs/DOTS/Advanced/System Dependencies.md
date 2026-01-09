@@ -39,153 +39,64 @@ tags:
 #### Example
 
 ```csharp
-// Example scenario: System X reads A and B, System Y writes B
-
-// === Initial State ===
-// Component Registry:
-// A -> default(JobHandle)
-// B -> default(JobHandle)
-
+// System X reads components A and B
 [BurstCompile]
 public partial struct SystemX : ISystem
 {
-    private EntityQuery _query;
-
-    [BurstCompile]
-    public void OnCreate(ref SystemState state)
-    {
-        // Registers that this system accesses components A and B (read-only)
-        _query = SystemAPI.QueryBuilder()
-            .WithAll<ComponentA, ComponentB>()
-            .Build();
-    }
-
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // BeforeUpdate: state.Dependency = default(JobHandle)
-        // (both A and B have default dependency)
+        // BeforeUpdate: state.Dependency = default (no prior dependencies)
 
-        // Schedule job that reads A and B
         state.Dependency = new ReadJob
         {
             ComponentA = SystemAPI.GetComponentTypeHandle<ComponentA>(true),
             ComponentB = SystemAPI.GetComponentTypeHandle<ComponentB>(true)
-        }.ScheduleParallel(_query, state.Dependency);
+        }.ScheduleParallel(query, state.Dependency);
 
-        // AfterUpdate: Registry updated:
-        // A -> SystemX.Dependency
-        // B -> SystemX.Dependency
+        // AfterUpdate: Registry updated: A -> SystemX.Dependency, B -> SystemX.Dependency
     }
 }
 
-// System Y updates after System X
+// System Y writes component B - automatically waits for SystemX
 [UpdateAfter(typeof(SystemX))]
 [BurstCompile]
 public partial struct SystemY : ISystem
 {
-    private EntityQuery _query;
-
-    [BurstCompile]
-    public void OnCreate(ref SystemState state)
-    {
-        // Registers that this system writes to component B
-        _query = SystemAPI.QueryBuilder()
-            .WithAll<ComponentB>()
-            .Build();
-    }
-
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         // BeforeUpdate: state.Dependency = SystemX.Dependency
-        // (because component B was written to by SystemX)
-        // This means any job scheduled by SystemY will wait for SystemX jobs!
+        // (Unity automatically chains dependency because B was accessed)
 
         state.Dependency = new WriteJob
         {
             ComponentB = SystemAPI.GetComponentTypeHandle<ComponentB>(false)
-        }.ScheduleParallel(_query, state.Dependency);
+        }.ScheduleParallel(query, state.Dependency);
 
-        // AfterUpdate: Registry updated:
-        // A -> SystemX.Dependency (unchanged, SystemY doesn't access A)
-        // B -> SystemY.Dependency (updated to SystemY's jobs)
+        // AfterUpdate: Registry updated: B -> SystemY.Dependency
     }
 }
 
-// System Z has no dependency conflicts
-[UpdateAfter(typeof(SystemY))]
+// System Z accesses different component - runs in parallel
 [BurstCompile]
 public partial struct SystemZ : ISystem
 {
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // Only accesses component C - no dependency on SystemX or SystemY
-        // state.Dependency = default(JobHandle) for component C
-        // SystemZ jobs run in PARALLEL with SystemX and SystemY!
-
+        // No dependency on SystemX or SystemY - different component
+        // Runs in PARALLEL with other systems!
         foreach (var c in SystemAPI.Query<RefRW<ComponentC>>())
-        {
             c.ValueRW.Value += 1;
-        }
     }
 }
 ```
 
-#### Component Registration Points
+#### Component Registration
 
 Components are registered when system calls:
-
-1. **EntityQuery creation:**
-   ```csharp
-   var query = SystemAPI.QueryBuilder().WithAll<Health>().Build();
-   ```
-
-2. **GetComponentTypeHandle:**
-   ```csharp
-   var healthHandle = SystemAPI.GetComponentTypeHandle<Health>(true);
-   ```
-
-3. **GetComponentLookup:**
-   ```csharp
-   var healthLookup = SystemAPI.GetComponentLookup<Health>(false);
-   ```
-
-4. **SystemAPI.Query in OnUpdate:**
-   ```csharp
-   foreach (var health in SystemAPI.Query<RefRW<Health>>())
-   ```
-
-#### EntityCommandBuffer System Dependencies
-
-```csharp
-[BurstCompile]
-public partial struct SpawnerSystem : ISystem
-{
-    [BurstCompile]
-    public void OnCreate(ref SystemState state)
-    {
-        // GetSingleton registers dependency on ECB singleton component
-        state.RequireForUpdate<BeginSimulationEntityCommandBufferSystem.Singleton>();
-    }
-
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        // Gets ECB singleton - registers RW dependency
-        var ecbSingleton = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>();
-        EntityCommandBuffer ecb = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged);
-
-        // Schedule jobs that write to ECB
-        new SpawnJob { Ecb = ecb.AsParallelWriter() }.ScheduleParallel();
-        // state.Dependency now contains dependency on spawn job
-
-        // ECB System will Complete() the RW dependency on its singleton
-        // This ensures all jobs writing to ECB complete before playback
-    }
-}
-```
+- `SystemAPI.QueryBuilder().WithAll<Health>().Build()`
+- `SystemAPI.GetComponentTypeHandle<Health>()`
+- `SystemAPI.GetComponentLookup<Health>()`
+- `SystemAPI.Query<RefRW<Health>>()`
 
 #### Pros
 - **Automatic safety** - no manual dependency tracking across systems, Unity handles it
@@ -214,9 +125,7 @@ public partial struct SpawnerSystem : ISystem
 - N/A - system dependencies are built into Unity ECS, cannot be avoided
 
 #### Extra tip
-- **Read-only vs Read-write separation** - registry separates RO and RW dependencies, allowing multiple readers in parallel but exclusive writers
-
-- **state.Dependency is the key** - always schedule jobs with it as input and assign result back:
+- **Always use state.Dependency** - schedule jobs with it as input and assign result back:
   ```csharp
   state.Dependency = job.Schedule(state.Dependency);
   ```
@@ -228,17 +137,13 @@ public partial struct SpawnerSystem : ISystem
   state.Dependency = JobHandle.CombineDependencies(jobA, jobB);
   ```
 
-- **System ordering affects efficiency** - systems with overlapping component access should be ordered carefully to minimize sync points
-
-- **EntityQuery caching** - queries created in OnCreate register components once, queries created in OnUpdate register every frame
+- **Read-only vs Read-write** - registry separates RO and RW dependencies, allowing multiple readers in parallel but exclusive writers
 
 - **SystemAPI.Query auto-registers** - using `SystemAPI.Query<T>()` automatically registers component T
 
-- **Manual dependency override** - can manually set `state.Dependency` to break automatic dependency chain (advanced, usually not recommended)
+- **Per-component-type tracking** - systems accessing different component types have no dependency relationship
 
-- **Dependency tracking is per-component-type** - two systems accessing different component types have no dependency relationship
-
-- **World-specific** - each World has its own component dependency registry, dependencies don't cross worlds
+- **World-specific** - each World has its own registry, dependencies don't cross worlds
 
 ## Practical Example: Parallel Systems
 

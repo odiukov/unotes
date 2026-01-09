@@ -13,95 +13,39 @@ tags:
 
 #### Example
 ```csharp
-// [ReadOnly] on lookups in jobs
+// [ReadOnly] on lookups - enables parallel job execution
 [BurstCompile]
-public partial struct ProjectileMoveSystem : ISystem
+public partial struct ProjectileMoveJob : IJobEntity
 {
-    private ComponentLookup<LocalToWorld> _positions;
+    [ReadOnly] public ComponentLookup<LocalToWorld> Positions;  // Multiple threads can read
 
-    [BurstCompile]
-    public void OnCreate(ref SystemState state)
+    private void Execute(ref LocalTransform transform, in Target target)
     {
-        // Create read-only lookup (true parameter)
-        _positions = SystemAPI.GetComponentLookup<LocalToWorld>(true);
-    }
-
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        _positions.Update(ref state);
-
-        new ProjectileMoveJob()
+        if (Positions.HasComponent(target.Entity))
         {
-            Positions = _positions
-        }.ScheduleParallel();  // Parallel execution safe with [ReadOnly]
-    }
-
-    public partial struct ProjectileMoveJob : IJobEntity
-    {
-        // [ReadOnly] enables parallel execution without race conditions
-        [ReadOnly] public ComponentLookup<LocalToWorld> Positions;
-
-        private void Execute(ref LocalTransform transform, in Target target)
-        {
-            if (Positions.HasComponent(target.Entity))
-            {
-                // Read-only access to target position
-                float3 targetPos = Positions[target.Entity].Position;
-                // ... use target position
-            }
+            float3 targetPos = Positions[target.Entity].Position;
+            // ... use target position
         }
     }
 }
 
-// [Optional] in aspects
+// [Optional] in aspects - component not required for query match
 public readonly partial struct CharacterAspect : IAspect
 {
     readonly RefRW<LocalTransform> _transform;  // Required
     readonly RefRW<Health> _health;             // Required
-
-    // Optional component - entity can match query without Shield
-    [Optional] readonly RefRW<Shield> _shield;
+    [Optional] readonly RefRW<Shield> _shield;  // Optional
 
     public void TakeDamage(float damage)
     {
-        // Check if optional component exists
-        if (_shield.IsValid)
+        if (_shield.IsValid)  // Check before accessing optional component
         {
-            // Access with .ValueRW like normal
             _shield.ValueRW.Amount -= damage;
-            if (_shield.ValueRO.Amount <= 0)
-            {
-                damage = -_shield.ValueRO.Amount; // Overflow damage
-            }
-            else
-            {
-                return; // Shield absorbed damage
-            }
+            if (_shield.ValueRO.Amount > 0)
+                return;  // Shield absorbed damage
+            damage = -_shield.ValueRO.Amount;  // Overflow damage
         }
-
-        // Apply remaining damage to health
         _health.ValueRW.Current -= damage;
-    }
-}
-
-// [ReadOnly] on DynamicBuffer in aspects
-public readonly partial struct PathFollowerAspect : IAspect
-{
-    readonly RefRW<LocalTransform> _transform;
-    readonly RefRW<NextPathIndex> _pathIndex;
-
-    // [ReadOnly] makes buffer read-only in aspect
-    [ReadOnly] readonly DynamicBuffer<Waypoints> _waypoints;
-
-    public void MoveAlongPath(float deltaTime, float speed)
-    {
-        // Can read from buffer but not modify
-        if (_pathIndex.ValueRO.Value >= _waypoints.Length)
-            return;
-
-        float3 targetPos = _waypoints[_pathIndex.ValueRO.Value].Position;
-        // ... movement logic
     }
 }
 ```
@@ -137,32 +81,14 @@ public readonly partial struct PathFollowerAspect : IAspect
 - **Component is required** - don't use `[Optional]` if component must always be present (defeats type safety)
 
 #### Extra tip
-- **[ReadOnly] and parallel jobs** - Unity's job system can run multiple jobs in parallel if they only read shared data, `[ReadOnly]` enables this optimization
-
-- **ComponentLookup read-only creation** - `SystemAPI.GetComponentLookup<T>(true)` creates read-only lookup, `(false)` creates read-write
+- **ComponentLookup creation** - `SystemAPI.GetComponentLookup<T>(true)` creates read-only lookup, `(false)` creates read-write
 
 - **[Optional] with RefRO/RefRW** - can use on either `RefRO<T>` or `RefRW<T>`, check `.IsValid` property before accessing
 
-- **IsValid pattern:**
-  ```csharp
-  [Optional] readonly RefRW<Shield> _shield;
-
-  if (_shield.IsValid)  // Check before access
-  {
-      _shield.ValueRW.Amount -= 10;  // Safe to access
-  }
-  ```
-
 - **[Optional] DynamicBuffer** - can mark DynamicBuffer as optional in aspects, check `.IsValid` before accessing
-
-- **[Optional] nested aspects** - can mark nested aspects as optional, allowing hierarchical optional component groups
-
-- **Performance consideration** - `[ReadOnly]` lookups are faster to create and update than read-write lookups
 
 - **Job dependency tracking** - Unity's job system uses `[ReadOnly]` to automatically track dependencies and schedule jobs efficiently
 
-- **Multiple [ReadOnly] fields** - can have unlimited `[ReadOnly]` lookups in a job, all can be accessed in parallel
+- **Multiple [ReadOnly] fields** - can have unlimited `[ReadOnly]` lookups in a job, all can be accessed in parallel safely
 
-- **Race condition prevention** - without `[ReadOnly]`, parallel writes to same data cause race conditions and undefined behavior, Unity will error instead
-
-- **Attribute on native collections** - `[ReadOnly]` also works on NativeArray, NativeList, NativeHashMap when passed to jobs for read-only access
+- **Native collections** - `[ReadOnly]` also works on NativeArray, NativeList, NativeHashMap when passed to jobs

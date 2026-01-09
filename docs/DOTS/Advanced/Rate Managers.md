@@ -31,16 +31,14 @@ public partial struct MyGameplaySystem : ISystem
 ```
 
 ##### Fixed Rate Simple Manager
-Updates **every frame** but reports a **fixed delta time**, unaffected by `Time.timeScale`.
+Updates **every frame** but reports **fixed delta time**, unaffected by `Time.timeScale`.
 
 ```csharp
-// Create custom group with fixed rate simple
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 public class FixedRateSimpleGroup : ComponentSystemGroup
 {
     public FixedRateSimpleGroup()
     {
-        // Always reports 0.02s (50 FPS) regardless of actual framerate
         SetRateManagerCreateAllocator(new RateUtils.FixedRateSimpleManager(50f));
     }
 }
@@ -50,140 +48,55 @@ public partial struct OldSchoolGameSystem : ISystem
 {
     public void OnUpdate(ref SystemState state)
     {
-        // SystemAPI.Time.DeltaTime is always 0.02 (50 FPS)
-        // Runs every frame like old games that assumed fixed framerate
+        // SystemAPI.Time.DeltaTime always 0.02 (50 FPS), runs every frame
     }
 }
 ```
 
-**Characteristics:**
-- Runs every frame (actual framerate doesn't matter)
-- Reports constant delta time (e.g., 0.02s for 50 FPS setting)
-- Ignores `Time.timeScale` - always reports same fixed delta
-- Good for legacy code porting or simple fixed-step logic
+**Characteristics:** Runs every frame, reports constant delta time, ignores timeScale, good for legacy porting
 
 ##### Fixed Rate Catch-Up Manager
-Works like Unity's `FixedUpdate` - runs at **fixed timestep**, may update **0, 1, or multiple times per frame** to maintain target rate.
+Like Unity's `FixedUpdate` - runs at **fixed timestep**, may update **0, 1, or N times per frame**.
 
 ```csharp
-// FixedStepSimulationSystemGroup uses this by default (60 Hz)
-[UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
+[UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]  // Default 60 Hz
 public partial struct PhysicsSystem : ISystem
 {
     public void OnUpdate(ref SystemState state)
     {
-        // Runs at fixed 60 Hz (default)
         // At 120 FPS: runs every other frame
         // At 30 FPS: runs twice per frame
-        // At 15 FPS with timeScale=2: runs 4x per frame (capped by MaximumDeltaTime)
         float fixedDelta = SystemAPI.Time.DeltaTime; // Always 0.0166f (1/60)
     }
 }
-
-// Configure fixed rate for custom group
-public class CustomPhysicsGroup : ComponentSystemGroup
-{
-    public CustomPhysicsGroup()
-    {
-        // 50 FPS fixed rate
-        var fixedRate = new RateUtils.FixedRateCatchUpManager(50f);
-        SetRateManagerCreateAllocator(fixedRate);
-    }
-}
 ```
 
-**Characteristics:**
-- Runs 0-N times per frame to maintain fixed rate
-- Reports fixed delta time
-- Respects `Time.timeScale` (2x speed = 2x updates per frame)
-- Has `MaximumDeltaTime` cap to prevent runaway spiral (if update takes >1 frame)
-- **Known Unity bug**: doesn't respect timeScale for MaximumDeltaTime calculation (can copy/fix if needed)
-
-**How it works:**
-- Accumulates time debt each frame
-- If debt >= fixed timestep, update and subtract timestep from debt
-- Keeps updating until debt < fixed timestep
-- Prevents spiral with max updates cap
+**Characteristics:** Runs 0-N times per frame, fixed delta time, respects timeScale, has MaximumDeltaTime cap
 
 ##### Variable Rate Manager
-Updates at **target framerate using real time** (unscaled), independent of `Time.timeScale`. Good for **low-frequency operations**.
+Updates at **target framerate using real time** (unscaled), good for **low-frequency operations**.
 
 ```csharp
-// VariableRateSimulationSystemGroup uses this (15 FPS default)
-[UpdateInGroup(typeof(VariableRateSimulationSystemGroup))]
-public partial struct CleanupDeadEnemiesSystem : ISystem
+[UpdateInGroup(typeof(VariableRateSimulationSystemGroup))]  // Default 15 FPS
+public partial struct CleanupSystem : ISystem
 {
     public void OnUpdate(ref SystemState state)
     {
-        // Runs ~15 times per second (using real stopwatch time)
-        // Unaffected by Time.timeScale
+        // Runs ~15x per second using real time (unaffected by timeScale)
         // At 60 FPS: runs ~every 4th frame
-        // DeltaTime = real time since last update
-
-        // Clean up off-screen dead enemies
-        // Doesn't need to happen every frame
-    }
-}
-
-// Custom variable rate group
-public class SlowUpdateGroup : ComponentSystemGroup
-{
-    public SlowUpdateGroup()
-    {
-        // Run at 10 FPS using real time
-        var variableRate = new RateUtils.VariableRateManager(10f);
-        SetRateManagerCreateAllocator(variableRate);
     }
 }
 ```
 
-**Characteristics:**
-- Uses stopwatch to measure real elapsed time
-- Compares real time to target interval, runs if exceeded
-- Reports **unscaled time** - ignores `Time.timeScale`
-- Good for non-gameplay systems (cleanup, analytics, background tasks)
+**Characteristics:** Uses real time stopwatch, ignores timeScale, good for cleanup/background tasks
 
 #### Internal Mechanism
 
-How rate managers work inside system group update:
-
-```csharp
-// Pseudo-code of what happens in ComponentSystemGroup.OnUpdate
-void OnUpdate()
-{
-    // 1. Check if should update this frame
-    if (!RateManager.ShouldGroupUpdate(out float deltaTime))
-        return; // Skip this frame
-
-    // 2. Push time values to SystemAPI.Time
-    PushTime(deltaTime, elapsedTime);
-
-    // 3. Set group allocators (World Update Allocator)
-    PushAllocators();
-
-    // 4. Update all child systems
-    UpdateAllSystems();
-
-    // 5. Check if should update again (catch-up scenario)
-    while (RateManager.ShouldGroupUpdate(out deltaTime))
-    {
-        // Can run multiple times per frame
-        PushTime(deltaTime, elapsedTime);
-        UpdateAllSystems();
-    }
-
-    // 6. Pop allocators
-    PopAllocators();
-    PopTime();
-}
-```
-
-**Key points:**
-- `ShouldGroupUpdate()` returns true/false based on rate manager logic
+Rate managers control `ComponentSystemGroup.OnUpdate`:
+- `ShouldGroupUpdate()` returns true/false based on rate logic
 - Time is "pushed" - child systems see rate manager's time via `SystemAPI.Time`
 - [[World]] Update Allocator is set per-group (automatic deallocation)
-- Can loop multiple times (Fixed Rate Catch-Up Manager)
-- Can return false on first call (skip frame entirely)
+- Can loop multiple times (catch-up) or skip frames entirely
 
 #### Default System Groups & Rate Managers
 
@@ -246,35 +159,17 @@ PresentationSystemGroup (every frame)
 - **Simple prototypes** - rate managers add complexity, use default groups for rapid prototyping
 
 #### Extra tip
-- **World Update Allocator** - rate managers automatically manage group allocators. Use `WorldUpdateAllocator` for temporary allocations that auto-dispose at group update end:
+- **World Update Allocator** - use `state.WorldUpdateAllocator` for temporary allocations that auto-dispose:
   ```csharp
-  var tempArray = CollectionHelper.CreateNativeArray<int>(100,
-      state.WorldUpdateAllocator); // No manual Dispose needed!
+  var tempArray = CollectionHelper.CreateNativeArray<int>(100, state.WorldUpdateAllocator);
   ```
 
-- **Configure FixedStepSimulationSystemGroup rate:**
+- **Configure fixed rate:**
   ```csharp
   var fixedGroup = world.GetExistingSystemManaged<FixedStepSimulationSystemGroup>();
   fixedGroup.Timestep = 1f / 50f; // Change to 50 Hz
   ```
 
-- **Priority brackets** - within a system group:
-  - `[UpdateInGroup(typeof(Group), OrderFirst = true)]` - earliest bracket
-  - Default - middle bracket
-  - `[UpdateInGroup(typeof(Group), OrderLast = true)]` - latest bracket
-  - Never set both OrderFirst=true AND OrderLast=true (creates undefined behavior)
+- **Custom rate manager** - implement `IRateManager` interface for custom update logic
 
-- **Custom rate manager** - can implement `IRateManager` interface for custom update logic (e.g., every 5 frames, on specific events)
-
-- **LateSimulationSystemGroup** - runs after [[TransformSystemGroup]], use when you need final world positions for rendering/effects
-
-- **Default placement** - systems without `[UpdateInGroup]` go to SimulationSystemGroup, after FixedStepSimulationSystemGroup but before LateSimulationSystemGroup
-
-- **Create custom group before TransformSystemGroup** - recommended for organizing game-specific systems:
-  ```csharp
-  [UpdateInGroup(typeof(SimulationSystemGroup))]
-  [UpdateBefore(typeof(TransformSystemGroup))]
-  public class GameplaySystemGroup : ComponentSystemGroup { }
-  ```
-
-- **Debugging time** - add debug logs showing `SystemAPI.Time.DeltaTime` vs `UnityEngine.Time.deltaTime` to understand rate manager behavior
+- **Default placement** - systems without `[UpdateInGroup]` go to SimulationSystemGroup

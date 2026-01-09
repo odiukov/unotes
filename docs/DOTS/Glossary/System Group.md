@@ -28,16 +28,14 @@ PresentationSystemGroup
 
 **Usage:**
 ```csharp
-// Place system in specific group
 [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
 public partial struct PhysicsSystem : ISystem { }
 
-// Create custom system group
+// Custom system group
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(TransformSystemGroup))]
 public class GameplaySystemGroup : ComponentSystemGroup { }
 
-// Use custom group
 [UpdateInGroup(typeof(GameplaySystemGroup))]
 public partial struct PlayerMovementSystem : ISystem { }
 ```

@@ -191,29 +191,6 @@ public partial struct ModernHealthSystem : ISystem
    - Before: `var ecb = GetSingleton<ECBSystem>().CreateCommandBuffer(this)`
    - After: `var ecbSingleton = SystemAPI.GetSingleton<ECBSystem.Singleton>(); var ecb = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged)`
 
-### Migration Example: EntityCommandBuffer
-```csharp
-// Before (Deprecated)
-Entities.ForEach((Entity entity, in Health health) =>
-{
-    if (health.Current <= 0)
-        ecb.DestroyEntity(entity);
-}).Schedule();
-
-// After (Modern)
-[BurstCompile]
-public partial struct KillJob : IJobEntity
-{
-    public EntityCommandBuffer.ParallelWriter Ecb;
-
-    private void Execute(Entity entity, [ChunkIndexInQuery] int sortKey, in Health health)
-    {
-        if (health.Current <= 0)
-            Ecb.DestroyEntity(sortKey, entity);
-    }
-}
-```
-
 ### Alternative: SystemAPI.Query for Simple Cases
 For very simple iterations, you can also use [[SystemAPI.Query]]:
 ```csharp

@@ -4,19 +4,16 @@ tags:
   - hybrid
 ---
 #### Description
-- **Blittable wrapper for UnityEngine.Object references** that allows storing Unity objects (GameObject, Texture, Material, etc.) in [[IComponentData]] while remaining [[Burst]] compatible
+- **Blittable wrapper for UnityEngine.Object references** allowing Unity objects (GameObject, Texture, Material, etc.) in [[IComponentData]] while remaining [[Burst]] compatible
 
-- Stores object reference as an **instance ID** internally, enabling [[Burst]] compilation unlike direct `UnityEngine.Object` references
+- Stores object reference as **instance ID** internally, enabling [[Burst]] compilation unlike direct `UnityEngine.Object` references
 
 - Provides **type-safe API** for getting/setting Unity objects while maintaining ECS performance characteristics
 
-- Alternative to [[Managed IComponentData (class components)|Managed IComponentData]] for cases where you need Unity object references but want to keep components blittable
+- Alternative to [[Managed IComponentData (class components)|Managed IComponentData]] for Unity object references while keeping components blittable
 
 #### Example
 ```csharp
-using Unity.Entities;
-using UnityEngine;
-
 // Component storing Unity object reference
 public struct CharacterSkin : IComponentData
 {
@@ -44,7 +41,6 @@ public class CharacterAuthoring : MonoBehaviour
                 SkinTexture = authoring.CharacterTexture
             });
 
-            // Track dependencies for rebaking
             DependsOn(authoring.CharacterMaterial);
             DependsOn(authoring.CharacterTexture);
         }
@@ -57,9 +53,7 @@ public partial struct CharacterRenderSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         // Access requires managed API - no Burst
-        foreach (var (skin, entity) in
-            SystemAPI.Query<RefRO<CharacterSkin>>()
-                .WithEntityAccess())
+        foreach (var skin in SystemAPI.Query<RefRO<CharacterSkin>>())
         {
             // Get Unity object from UnityObjectRef
             Material material = skin.ValueRO.SkinMaterial.Value;
@@ -74,38 +68,19 @@ public partial struct CharacterRenderSystem : ISystem
 }
 
 // Checking if reference is valid
-public partial struct ValidationSystem : ISystem
+foreach (var skin in SystemAPI.Query<RefRO<CharacterSkin>>())
 {
-    public void OnUpdate(ref SystemState state)
+    if (skin.ValueRO.SkinMaterial.Value != null)
     {
-        foreach (var skin in SystemAPI.Query<RefRO<CharacterSkin>>())
-        {
-            // Check if Unity object still exists
-            if (skin.ValueRO.SkinMaterial.Value != null)
-            {
-                // Material is valid
-            }
-            else
-            {
-                // Material was destroyed or not set
-            }
-        }
+        // Material is valid
     }
 }
 
 // Setting UnityObjectRef at runtime
-public partial struct SkinChangerSystem : ISystem
+Material newMaterial = Resources.Load<Material>("NewSkin");
+foreach (var skin in SystemAPI.Query<RefRW<CharacterSkin>>())
 {
-    public void OnUpdate(ref SystemState state)
-    {
-        Material newMaterial = Resources.Load<Material>("NewSkin");
-
-        foreach (var skin in SystemAPI.Query<RefRW<CharacterSkin>>())
-        {
-            // Assign new Unity object
-            skin.ValueRW.SkinMaterial = newMaterial;
-        }
-    }
+    skin.ValueRW.SkinMaterial = newMaterial;
 }
 ```
 
@@ -114,20 +89,20 @@ public partial struct SkinChangerSystem : ISystem
 
 - **[[Burst]] storage compatible** - component can be stored and moved by Burst code (though accessing `.Value` requires managed context)
 
-- **Type safety** - `UnityObjectRef<Material>` ensures only Material references are stored
+- **Type safety** - `UnityObjectRef<Material>` ensures only Material references stored
 
 - **Null-safe** - can check `.Value != null` to verify object still exists
 
 - **Instance ID based** - survives Unity domain reloads better than direct references
 
 #### Cons
-- **Accessing requires managed context** - cannot use `.Value` in [[Burst]] jobs, must access on main thread or in non-Burst systems
+- **Accessing requires managed context** - cannot use `.Value` in [[Burst]] jobs, must access on main thread
 
 - **Performance overhead** - accessing `.Value` requires instance ID lookup, slower than direct reference
 
 - **Not fully ECS** - still bridges to Unity object system, not pure data-oriented
 
-- **Broken references possible** - if Unity object is destroyed, `.Value` returns null (no automatic cleanup)
+- **Broken references possible** - if Unity object destroyed, `.Value` returns null (no automatic cleanup)
 
 #### Best use
 - **Baked asset references** - materials, textures, prefabs converted during [[Baking]]
@@ -139,16 +114,16 @@ public partial struct SkinChangerSystem : ISystem
 - **Configuration assets** - ScriptableObject references for game configuration
 
 #### Avoid if
-- **Pure ECS is goal** - if building fully data-oriented system, avoid Unity object references entirely
+- **Pure ECS is goal** - if building fully data-oriented system, avoid Unity object references
 
-- **Need [[Burst]] access** - if jobs need to access the data, use [[BlobAsset (immutable data)|BlobAsset]] instead to convert data to blittable format
+- **Need [[Burst]] access** - if jobs need to access data, use [[BlobAsset (immutable data)|BlobAsset]] to convert to blittable format
 
 - **Frequent runtime changes** - if references change often, [[Managed IComponentData (class components)|managed components]] may be simpler
 
 - **Can be baked to data** - if Unity object data can be converted to pure data during baking, do that instead
 
 #### Extra tip
-- **Implicit conversions** - UnityObjectRef supports implicit conversion from Unity objects:
+- **Implicit conversions:**
   ```csharp
   UnityObjectRef<Material> materialRef = myMaterial;  // Implicit
   Material material = materialRef.Value;               // Explicit via .Value
@@ -156,20 +131,14 @@ public partial struct SkinChangerSystem : ISystem
 
 - **Null handling:**
   ```csharp
-  // Check before use
-  if (materialRef.Value != null)
-  {
-      // Safe to use
-  }
-
-  // Or use null-conditional
-  materialRef.Value?.SetFloat("_Metallic", 1.0f);
+  if (materialRef.Value != null) { /* Safe to use */ }
+  materialRef.Value?.SetFloat("_Metallic", 1.0f);  // Null-conditional
   ```
 
-- **Instance ID access** - can get raw instance ID:
+- **Instance ID access:**
   ```csharp
   int id = materialRef.instanceID;
-  // Useful for comparison or storage in blittable containers
+  // Useful for comparison or storage
   ```
 
 - **Equality comparison:**
@@ -180,21 +149,17 @@ public partial struct SkinChangerSystem : ISystem
 
 - **Works with Resources and AssetDatabase:**
   ```csharp
-  // Load and assign
   var material = Resources.Load<Material>("MyMaterial");
   component.MaterialRef = material;
-
-  // Or during baking from asset
-  var texture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/texture.png");
   ```
 
-- **Cleanup pattern** - use [[ICleanupComponentData]] to track when entities with UnityObjectRef are destroyed if you need custom cleanup
+- **Cleanup pattern** - use [[ICleanupComponentData]] to track when entities with UnityObjectRef destroyed if need custom cleanup
 
-- **Not serialized directly** - Unity serializes as instance ID, resolves to object on load (similar to how Unity serializes object references)
+- **Not serialized directly** - Unity serializes as instance ID, resolves to object on load
 
 - **Performance vs Managed Components:**
   - ✅ Better cache performance (component stays in chunk)
-  - ✅ Survives across Burst boundaries (can be in Burst-accessible memory)
+  - ✅ Survives across Burst boundaries
   - ❌ Accessing `.Value` still requires managed context
   - ❌ Lookup overhead vs direct managed reference
 

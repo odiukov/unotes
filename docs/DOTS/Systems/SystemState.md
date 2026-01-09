@@ -6,17 +6,14 @@ tags:
 #### Description
 - **System instance state parameter** passed to OnUpdate(), OnCreate(), and OnDestroy() methods of [[ISystem]] - provides access to system properties and ECS operations
 
-- **Central access point** for [[EntityManager]], [[World]], job dependencies, and queries within a system context
+- **Central access point** for [[EntityManager]], [[World]], job dependencies, and queries within system context
 
-- **Tracks component access** - operations through SystemState register which components the system uses, essential for automatic [[System Dependencies|dependency management]]
+- **Tracks component access** - operations through SystemState register which components system uses, essential for automatic [[System Dependencies|dependency management]]
 
-- **Replaces direct EntityManager access** - prefer SystemState methods over direct EntityManager to ensure proper dependency tracking
+- **Replaces direct EntityManager access** - prefer SystemState methods to ensure proper dependency tracking
 
 #### Example
 ```csharp
-using Unity.Entities;
-using Unity.Burst;
-
 [BurstCompile]
 public partial struct ExampleSystem : ISystem
 {
@@ -74,7 +71,6 @@ public partial struct ExampleSystem : ISystem
     public void OnDestroy(ref SystemState state)
     {
         // Cleanup if needed
-        Debug.Log("System destroyed");
     }
 }
 ```
@@ -169,8 +165,6 @@ public partial struct ExampleSystem : ISystem
   // Require query to have matching entities
   EntityQuery query = state.GetEntityQuery(typeof(Player));
   state.RequireForUpdate(query);
-
-  // System won't update if requirement not met
   ```
 
 - **SystemState vs EntityManager:**

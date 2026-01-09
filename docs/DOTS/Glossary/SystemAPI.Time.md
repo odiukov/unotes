@@ -19,10 +19,7 @@ public partial struct PhysicsSystem : ISystem
 {
     public void OnUpdate(ref SystemState state)
     {
-        // Always 0.0166f (60 Hz fixed) regardless of actual framerate
-        float fixedDelta = SystemAPI.Time.DeltaTime;
-
-        // Move with fixed timestep for deterministic physics
+        float fixedDelta = SystemAPI.Time.DeltaTime;  // Always 0.0166f (60 Hz)
         velocity.y -= 9.81f * fixedDelta;
     }
 }
@@ -32,10 +29,7 @@ public partial struct AnimationSystem : ISystem
 {
     public void OnUpdate(ref SystemState state)
     {
-        // Actual frame delta (varies with framerate)
-        float frameDelta = SystemAPI.Time.DeltaTime;
-
-        // Smooth animation that matches framerate
+        float frameDelta = SystemAPI.Time.DeltaTime;  // Frame delta (varies)
         alpha += speed * frameDelta;
     }
 }

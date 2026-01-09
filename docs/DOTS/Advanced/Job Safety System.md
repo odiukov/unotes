@@ -36,74 +36,32 @@ tags:
 [BurstCompile]
 public partial struct SafetyExampleSystem : ISystem
 {
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         var positions = new NativeArray<float3>(100, Allocator.TempJob);
 
-        // Schedule job that WRITES to positions
-        JobHandle writeJob = new WriteJob
-        {
-            Positions = positions
-        }.Schedule(state.Dependency);
+        // Schedule write job
+        JobHandle writeJob = new WriteJob { Positions = positions }.Schedule(state.Dependency);
 
-        // ERROR: Cannot schedule read job - writeJob is writing to positions
-        // Unity will throw InvalidOperationException
-        JobHandle readJob = new ReadJob
-        {
-            Positions = positions
-        }.Schedule(state.Dependency);  // ❌ RACE CONDITION!
+        // ❌ ERROR: Cannot schedule - write-read conflict
+        JobHandle readJob = new ReadJob { Positions = positions }.Schedule(state.Dependency);
 
-        // CORRECT: Pass writeJob as dependency
-        JobHandle readJob = new ReadJob
-        {
-            Positions = positions
-        }.Schedule(writeJob);  // ✅ Waits for write to complete
+        // ✅ CORRECT: Chain dependency
+        JobHandle readJob = new ReadJob { Positions = positions }.Schedule(writeJob);
 
         state.Dependency = readJob;
         positions.Dispose(state.Dependency);
     }
 }
 
-[BurstCompile]
-public struct WriteJob : IJob
-{
-    public NativeArray<float3> Positions;
+// ❌ ERROR: Main thread access during job
+var array = new NativeArray<int>(10, Allocator.TempJob);
+JobHandle job = new WriteJob { Array = array }.Schedule();
+int value = array[0];  // Throws AtomicSafetyHandle exception
 
-    public void Execute()
-    {
-        Positions[0] = new float3(1, 2, 3);  // Write access
-    }
-}
-
-[BurstCompile]
-public struct ReadJob : IJob
-{
-    [ReadOnly] public NativeArray<float3> Positions;  // [ReadOnly] crucial!
-
-    public void Execute()
-    {
-        float3 pos = Positions[0];  // Read access
-    }
-}
-
-// Example: Unsafe main thread access
-public void OnUpdate(ref SystemState state)
-{
-    var array = new NativeArray<int>(10, Allocator.TempJob);
-
-    // Schedule job that writes to array
-    JobHandle job = new WriteJob { Array = array }.Schedule();
-
-    // ERROR: Job is scheduled and writing, can't access on main thread
-    int value = array[0];  // ❌ Throws AtomicSafetyHandle exception
-
-    // CORRECT: Complete job first
-    job.Complete();  // Sync point - wait for job
-    int value = array[0];  // ✅ Now safe to access
-
-    array.Dispose();
-}
+// ✅ CORRECT: Complete job first
+job.Complete();  // Sync point
+int value = array[0];  // Now safe
 ```
 
 #### Common Safety Errors
@@ -158,29 +116,20 @@ job. You are trying to read from it on the main thread. This is not allowed.
 - N/A - safety system is fundamental to Unity jobs, cannot be avoided
 
 #### Extra tip
-- **[ReadOnly] attribute is crucial** - only fields marked `[ReadOnly]` are considered read-only for safety checks
+- **[ReadOnly] attribute** - only fields marked `[ReadOnly]` are considered read-only for safety checks
 
-- **Job dependencies solve conflicts** - when safety error occurs, pass conflicting job's JobHandle as dependency:
+- **Job dependencies solve conflicts** - chain dependencies to prevent race conditions:
   ```csharp
-  JobHandle jobA = jobA.Schedule(dependency);
   JobHandle jobB = jobB.Schedule(jobA);  // jobB waits for jobA
   ```
 
-- **Unity ECS handles dependencies automatically** - in [[ISystem]], `SystemState.Dependency` is automatically managed across systems based on component access
+- **Unity ECS auto-manages dependencies** - `SystemState.Dependency` automatically tracks component access across systems
 
-- **Parallel job safety** - multiple jobs can read same container if all marked `[ReadOnly]`, but only one can write
+- **Parallel reads** - multiple jobs can read same container if all marked `[ReadOnly]`, but only one can write
 
-- **Native containers only** - safety system only works with Unity's native containers (NativeArray, NativeList, etc.), not managed arrays or collections
+- **Safety in builds** - safety checks are Editor-only by default, disabled in builds (enable with `ENABLE_UNITY_COLLECTIONS_CHECKS`)
 
-- **Disable safety for performance testing** - in jobs, can add `[NativeDisableContainerSafetyRestriction]` attribute to disable safety (dangerous, use only for profiling)
-
-- **Safety in builds** - safety checks are Editor-only by default, disabled in builds for performance (can enable with `ENABLE_UNITY_COLLECTIONS_CHECKS` define)
-
-- **Complete() is a [[Sync points|sync point]]** - calling `JobHandle.Complete()` forces main thread to wait for job, avoid when possible
-
-- **Dependency combining** - use `JobHandle.CombineDependencies(jobA, jobB, jobC)` to create dependency on multiple jobs
-
-- **Default dependency** - `default(JobHandle)` means "no dependency, run ASAP"
+- **Complete() is a [[Sync points|sync point]]** - avoid calling `JobHandle.Complete()` when possible
 
 ## See Also
 

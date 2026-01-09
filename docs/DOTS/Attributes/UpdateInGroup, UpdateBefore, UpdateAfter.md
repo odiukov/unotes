@@ -13,62 +13,32 @@ tags:
 
 #### Example
 ```csharp
-// Update in FixedStepSimulationSystemGroup (fixed timestep physics)
+// Fixed timestep physics
 [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
 [BurstCompile]
-public partial struct SpawnerSystem : ISystem
-{
-    public void OnUpdate(ref SystemState state)
-    {
-        // Runs at fixed timestep (default 60 Hz)
-    }
-}
+public partial struct SpawnerSystem : ISystem { }
 
-// Update after TransformSystemGroup to get final positions
+// After transforms computed
 [UpdateAfter(typeof(TransformSystemGroup))]
 [BurstCompile]
-public partial struct ProjectileMoveSystem : ISystem
-{
-    public void OnUpdate(ref SystemState state)
-    {
-        // Runs after all transforms are computed
-    }
-}
+public partial struct ProjectileMoveSystem : ISystem { }
 
-// Update before TowerPlacementSystem
+// Before another system
 [UpdateBefore(typeof(TowerPlacementSystem))]
 [BurstCompile]
-public partial struct InputSystem : ISystem
-{
-    public void OnUpdate(ref SystemState state)
-    {
-        // Input processed before placement logic
-    }
-}
+public partial struct InputSystem : ISystem { }
 
-// Physics trigger processing after physics simulation
+// After physics simulation
 [UpdateInGroup(typeof(AfterPhysicsSystemGroup))]
 [BurstCompile]
-public partial struct EnemyPlayerCollisionSystem : ISystem
-{
-    public void OnUpdate(ref SystemState state)
-    {
-        // Runs after physics step completes
-    }
-}
+public partial struct EnemyPlayerCollisionSystem : ISystem { }
 
-// Combining multiple attributes
+// Combining multiple ordering attributes
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateAfter(typeof(MovementSystem))]
 [UpdateBefore(typeof(AnimationSystem))]
 [BurstCompile]
-public partial struct CombatSystem : ISystem
-{
-    public void OnUpdate(ref SystemState state)
-    {
-        // Runs after movement, before animation, within simulation group
-    }
-}
+public partial struct CombatSystem : ISystem { }
 ```
 
 #### Pros
@@ -117,45 +87,23 @@ public partial struct CombatSystem : ISystem
 
 - **Default group** - systems without `[UpdateInGroup]` default to `SimulationSystemGroup`
 
-- **Nested groups** - system groups can contain other system groups, creating hierarchy. SimulationSystemGroup structure:
+- **Nested groups** - SimulationSystemGroup structure:
   ```
   SimulationSystemGroup (every frame)
     ├─ FixedStepSimulationSystemGroup (fixed 60 Hz)
     ├─ VariableRateSimulationSystemGroup (variable ~15 FPS)
-    ├─ [Your systems without UpdateInGroup] (every frame, default)
-    └─ LateSimulationSystemGroup (every frame, after transforms)
+    └─ LateSimulationSystemGroup (after transforms)
   ```
 
-- **Custom group recommendation** - create your own system group for game-specific systems and update it before TransformSystemGroup:
-  ```csharp
-  [UpdateInGroup(typeof(SimulationSystemGroup))]
-  [UpdateBefore(typeof(TransformSystemGroup))]
-  public class GameplaySystemGroup : ComponentSystemGroup { }
-  ```
-  Then organize your systems inside this group for better structure.
+- **OrderFirst/OrderLast** - `[UpdateInGroup(typeof(Group), OrderFirst = true)]` or `OrderLast = true` runs at start/end of group
+  - **Never set both to true** - creates undefined behavior
+  - Creates three priority brackets: OrderFirst → default → OrderLast
+  - `[UpdateBefore]`/`[UpdateAfter]` only work within same priority bracket
 
-- **Multiple constraints** - can combine `[UpdateBefore]` and `[UpdateAfter]` to sandwich a system between two others
+- **Creation order** - within a group without explicit ordering, systems update in file/class creation order
 
-- **OrderFirst/OrderLast** - use `[UpdateInGroup(typeof(Group), OrderFirst = true)]` or `OrderLast = true` to run at start/end of group
-  - **Never set both to true** - setting both OrderFirst=true AND OrderLast=true creates undefined behavior
-  - Creates three priority brackets: OrderFirst (earliest) → default (middle) → OrderLast (latest)
-  - `[UpdateBefore]` and `[UpdateAfter]` only work within the same priority bracket
+- **Rate managers** - see [[Rate Managers]] for how system groups control update frequency and [[SystemAPI.Time]] for time perception
 
-- **Creation order** - within a group without explicit ordering, systems update in the order they were created (file/class order)
+- **Debugging** - enable "DOTS > Preferences > Show System Execution Order" to visualize update sequence
 
-- **CreateBefore/CreateAfter** - similar to UpdateBefore/UpdateAfter but controls creation order (rare use case):
-  ```csharp
-  [CreateBefore(typeof(OtherSystem))]
-  public partial struct InitSystem : ISystem { }
-  ```
-  Only works if systems are in same group and same priority bracket
-
-- **Rate managers and time** - see [[Rate Managers]] to understand how system groups control update frequency and [[SystemAPI.Time]] for time perception in systems
-
-- **Debugging order** - enable "DOTS > Preferences > Show System Execution Order" in Unity to visualize system update sequence
-
-- **Circular dependencies** - Unity will error if you create circular ordering constraints (A before B, B before C, C before A)
-
-- **Component system groups** - can create custom system groups by inheriting from `ComponentSystemGroup` for organizing domain-specific systems
-
-- **Fixed timestep config** - `FixedStepSimulationSystemGroup.Timestep` property controls fixed update rate (default 0.0166f = ~60 Hz)
+- **Fixed timestep config** - `FixedStepSimulationSystemGroup.Timestep` controls fixed update rate (default 0.0166f = ~60 Hz)
