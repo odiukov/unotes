@@ -28,3 +28,7 @@ public struct Health : IComponentData { public int Value; }
 - Can be used as [[Tag Component]]
 #### Avoid if
 - Large or rarely used data (wastes [[Chunk]] memory).
+
+#### See also
+- [[Component Memory Alignment]] - Optimize struct field ordering to minimize memory waste
+- [[ECS Design Decisions]] - Component design patterns and when to split/combine components

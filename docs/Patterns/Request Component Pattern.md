@@ -146,3 +146,5 @@ entityManager.RemoveComponent<RequestSceneLoaded>(entity);  // Unload
 - **Request vs request entities**:
   - **Request components**: Persist on entity, reversible, repeatable
   - **Request entities**: Destroyed after processing, one-time, fire-and-forget
+
+- **Architectural context**: See [[ECS Design Decisions]] for command component pattern and when to choose request patterns vs immediate execution

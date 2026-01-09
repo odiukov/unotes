@@ -150,3 +150,7 @@ buffer.Capacity = 10;  // Override internal capacity
 - **Capacity evolution**: Start with default, profile in alpha, optimize in beta based on actual gameplay data
 
 - **Best practices**: Profile first, optimize for 80th percentile, consider element size impact, document reasoning
+
+#### See also
+- [[Component Memory Alignment]] - Optimize memory layout within buffer elements for better cache performance
+- [[ECS Design Decisions]] - Container component patterns and when to use buffers vs multiple components

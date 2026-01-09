@@ -164,3 +164,5 @@ public class BossStateExecutors : IComponentData
 - **Combining patterns**: Can integrate with [[Entity Factory with Archetype]] to spawn entities from action executors
 
 - **Visualization**: Create Unity Editor custom inspector to visualize state graph with conditions for designers
+
+- **Immediate vs deferred transitions**: See [[ECS Design Decisions]] for guidance on when to execute state changes immediately vs deferring to systems

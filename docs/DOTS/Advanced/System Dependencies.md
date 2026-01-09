@@ -190,3 +190,4 @@ public partial struct DamageSystem : ISystem  // Accesses: Damage
 - [[Sync points]] - When jobs are forced to complete
 - [[UpdateInGroup, UpdateBefore, UpdateAfter]] - System ordering
 - [[ISystem]] - System interface
+- [[ECS Design Decisions]] - High-level system architecture patterns including system ordering strategies

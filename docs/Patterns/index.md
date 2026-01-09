@@ -2,6 +2,10 @@
 
 Common design patterns and best practices for Unity DOTS development.
 
+## Architecture & Design
+
+- **[[ECS Design Decisions]]** - Architectural patterns and decision-making framework for component design, system architecture, and OOP integration
+
 ## Query Patterns
 
 - **[[SystemAPI.Query]]** - Main entity iteration pattern with foreach syntax

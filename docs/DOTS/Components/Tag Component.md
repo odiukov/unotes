@@ -20,5 +20,10 @@ public struct PlayerTag : IComponentData {}
 
 #### Best use
 - Mark entity type (enemy, player, projectile).
-      
+
 - Toggle behavior quickly.
+
+#### See also
+- [[ECS Design Decisions]] - Tag component design patterns and architectural considerations
+- [[Tag-Based Behavior Selection]] - Advanced tag patterns for behavior control
+- [[Disable Tag Pattern]] - Exclusion filtering with disable tags
