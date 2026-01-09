@@ -3,78 +3,26 @@ tags:
   - pattern
 ---
 #### Description
-- **Component bundling pattern** that provides utility functions to add groups of interdependent [[Component|components]] together in a single call, simplifying entity creation
+- **Component bundling pattern** providing utility functions to add groups of interdependent [[Component|components]] in single call
 
 - Uses `FixedList128Bytes<ComponentType>` to define component sets, then `ComponentTypeSet` for efficient batch addition via `EntityManager.AddComponent(entity, componentSet)`
 
 - Prevents forgetting required supporting components and ensures consistent entity setup across codebase
 
-- Unity's Entities Graphics package uses this pattern extensively - `RenderMeshUtility.AddComponents()` adds all rendering-related components in one call
+- Unity's Entities Graphics uses this - `RenderMeshUtility.AddComponents()` adds all rendering-related components in one call
 
 #### Example
 ```csharp
-// Example from Unity's Entities Graphics package (simplified)
-public static class RenderMeshUtility
-{
-    // Helper method to add all components needed for rendering
-    public static void AddComponents(
-        Entity entity,
-        EntityManager entityManager,
-        RenderMeshDescription renderMeshDescription)
-    {
-        // Build component type list
-        var componentTypes = new FixedList128Bytes<ComponentType>();
-
-        // Core rendering components
-        componentTypes.Add(ComponentType.ReadWrite<WorldRenderBounds>());
-        componentTypes.Add(ComponentType.ReadWrite<LocalToWorld>());
-        componentTypes.Add(ComponentType.ReadWrite<MaterialMeshInfo>());
-
-        // Optional components based on description
-        if (renderMeshDescription.FilterSettings.ShadowCastingMode != ShadowCastingMode.Off)
-        {
-            componentTypes.Add(ComponentType.ReadWrite<CastShadows>());
-        }
-
-        if (renderMeshDescription.LightProbeUsage != LightProbeUsage.Off)
-        {
-            componentTypes.Add(ComponentType.ReadWrite<LightProbes>());
-        }
-
-        // Convert to ComponentTypeSet and add all at once
-        var componentSet = new ComponentTypeSet(componentTypes);
-        entityManager.AddComponent(entity, componentSet);
-
-        // Set initial values
-        entityManager.SetComponentData(entity, new MaterialMeshInfo
-        {
-            Mesh = renderMeshDescription.Mesh,
-            Material = renderMeshDescription.Material
-        });
-    }
-}
-
-// Usage
-Entity renderEntity = entityManager.CreateEntity();
-RenderMeshUtility.AddComponents(
-    renderEntity,
-    entityManager,
-    new RenderMeshDescription
-    {
-        Mesh = myMesh,
-        Material = myMaterial,
-        ShadowCastingMode = ShadowCastingMode.On
-    });
-
-// Example: Character component helper
+// Helper class with utility methods
 public static class CharacterUtility
 {
     public static void AddCharacterComponents(
         Entity entity,
-        EntityManager entityManager,
+        EntityManager em,
         bool isPlayer = false)
     {
-        var componentTypes = new FixedList128Bytes<ComponentType>
+        // Build component list
+        var components = new FixedList128Bytes<ComponentType>
         {
             ComponentType.ReadWrite<Health>(),
             ComponentType.ReadWrite<CharacterController>(),
@@ -82,275 +30,132 @@ public static class CharacterUtility
             ComponentType.ReadWrite<LocalTransform>(),
         };
 
-        // Player-specific components
+        // Conditional components
         if (isPlayer)
         {
-            componentTypes.Add(ComponentType.ReadWrite<PlayerInput>());
-            componentTypes.Add(ComponentType.ReadWrite<PlayerInventory>());
-            componentTypes.Add(ComponentType.ReadWrite<CameraTarget>());
+            components.Add(ComponentType.ReadWrite<PlayerInput>());
+            components.Add(ComponentType.ReadWrite<Inventory>());
         }
         else
         {
-            componentTypes.Add(ComponentType.ReadWrite<AIController>());
-            componentTypes.Add(ComponentType.ReadWrite<AIState>());
+            components.Add(ComponentType.ReadWrite<AIController>());
         }
 
-        var componentSet = new ComponentTypeSet(componentTypes);
-        entityManager.AddComponent(entity, componentSet);
+        // Add all at once
+        var componentSet = new ComponentTypeSet(components);
+        em.AddComponent(entity, componentSet);
 
-        // Set default values
-        entityManager.SetComponentData(entity, new Health
-        {
-            Current = 100,
-            Max = 100
-        });
-
-        entityManager.SetComponentData(entity, new MovementSpeed
-        {
-            Value = isPlayer ? 5f : 3f
-        });
+        // Set initial values
+        em.SetComponentData(entity, new Health { Current = 100, Max = 100 });
+        em.SetComponentData(entity, new MovementSpeed { Value = 5f });
     }
 }
 
-// Example: Physics entity helper
-public static class PhysicsEntityUtility
+// Usage
+Entity player = entityManager.CreateEntity();
+CharacterUtility.AddCharacterComponents(player, entityManager, isPlayer: true);
+
+// Unity.Entities.Graphics example
+public static class RenderMeshUtility
 {
-    public static void AddPhysicsComponents(
+    public static void AddComponents(
         Entity entity,
-        EntityManager entityManager,
-        bool isDynamic,
-        bool needsCollisionEvents = false)
+        EntityManager em,
+        RenderMeshDescription desc)
     {
-        var componentTypes = new FixedList128Bytes<ComponentType>
+        var components = new FixedList128Bytes<ComponentType>
         {
-            ComponentType.ReadWrite<PhysicsCollider>(),
-            ComponentType.ReadWrite<PhysicsWorldIndex>(),
+            ComponentType.ReadWrite<WorldRenderBounds>(),
+            ComponentType.ReadWrite<LocalToWorld>(),
+            ComponentType.ReadWrite<MaterialMeshInfo>(),
         };
 
-        if (isDynamic)
-        {
-            componentTypes.Add(ComponentType.ReadWrite<PhysicsVelocity>());
-            componentTypes.Add(ComponentType.ReadWrite<PhysicsMass>());
-            componentTypes.Add(ComponentType.ReadWrite<PhysicsDamping>());
-        }
+        // Conditional rendering features
+        if (desc.ShadowCastingMode != ShadowCastingMode.Off)
+            components.Add(ComponentType.ReadWrite<CastShadows>());
 
-        if (needsCollisionEvents)
-        {
-            componentTypes.Add(ComponentType.ReadWrite<CollisionEventBuffer>());
-        }
+        if (desc.LightProbeUsage != LightProbeUsage.Off)
+            components.Add(ComponentType.ReadWrite<LightProbes>());
 
-        var componentSet = new ComponentTypeSet(componentTypes);
-        entityManager.AddComponent(entity, componentSet);
-    }
-}
-
-// Example: Baker usage
-public class CharacterAuthoring : MonoBehaviour
-{
-    public bool IsPlayer;
-}
-
-public class CharacterBaker : Baker<CharacterAuthoring>
-{
-    public override void Bake(CharacterAuthoring authoring)
-    {
-        var entity = GetEntity(TransformUsageFlags.Dynamic);
-
-        // Use helper to add all required components
-        CharacterUtility.AddCharacterComponents(
-            entity,
-            EntityManager,
-            authoring.IsPlayer);
-    }
-}
-
-// Example: Networked entity helper
-public static class NetworkEntityUtility
-{
-    public static void AddNetworkComponents(
-        Entity entity,
-        EntityManager entityManager,
-        bool isServer)
-    {
-        var componentTypes = new FixedList128Bytes<ComponentType>
-        {
-            ComponentType.ReadWrite<NetworkId>(),
-            ComponentType.ReadWrite<NetworkTransform>(),
-            ComponentType.ReadWrite<ReplicatedEntity>(),
-        };
-
-        if (isServer)
-        {
-            componentTypes.Add(ComponentType.ReadWrite<ServerAuthority>());
-            componentTypes.Add(ComponentType.ReadWrite<NetworkSpawnRequest>());
-        }
-        else
-        {
-            componentTypes.Add(ComponentType.ReadWrite<ClientPrediction>());
-            componentTypes.Add(ComponentType.ReadWrite<ServerReconciliation>());
-        }
-
-        var componentSet = new ComponentTypeSet(componentTypes);
-        entityManager.AddComponent(entity, componentSet);
-    }
-}
-
-// Example: Weapon entity helper with configurable features
-public enum WeaponFeatures
-{
-    None = 0,
-    Recoil = 1 << 0,
-    Reload = 1 << 1,
-    Overheat = 1 << 2,
-    Projectile = 1 << 3,
-}
-
-public static class WeaponUtility
-{
-    public static void AddWeaponComponents(
-        Entity entity,
-        EntityManager entityManager,
-        WeaponFeatures features)
-    {
-        var componentTypes = new FixedList128Bytes<ComponentType>
-        {
-            ComponentType.ReadWrite<Weapon>(),
-            ComponentType.ReadWrite<Damage>(),
-            ComponentType.ReadWrite<FireRate>(),
-        };
-
-        if ((features & WeaponFeatures.Recoil) != 0)
-        {
-            componentTypes.Add(ComponentType.ReadWrite<RecoilData>());
-        }
-
-        if ((features & WeaponFeatures.Reload) != 0)
-        {
-            componentTypes.Add(ComponentType.ReadWrite<AmmoCount>());
-            componentTypes.Add(ComponentType.ReadWrite<ReloadTime>());
-        }
-
-        if ((features & WeaponFeatures.Overheat) != 0)
-        {
-            componentTypes.Add(ComponentType.ReadWrite<HeatLevel>());
-            componentTypes.Add(ComponentType.ReadWrite<CooldownRate>());
-        }
-
-        if ((features & WeaponFeatures.Projectile) != 0)
-        {
-            componentTypes.Add(ComponentType.ReadWrite<ProjectilePrefab>());
-        }
-
-        var componentSet = new ComponentTypeSet(componentTypes);
-        entityManager.AddComponent(entity, componentSet);
+        em.AddComponent(entity, new ComponentTypeSet(components));
     }
 }
 ```
 
+**Pattern structure:**
+1. Static utility class with helper methods
+2. Method takes entity + parameters
+3. Build `FixedList128Bytes<ComponentType>`
+4. Convert to `ComponentTypeSet`
+5. Call `AddComponent(entity, componentSet)`
+6. Set initial component values
+
 #### Pros
-- **Prevents forgotten components** - ensures all required components are added together, reducing bugs
+- **Prevents errors** - guarantees all required components added together
 
-- **Consistent entity setup** - centralizes entity creation logic, making codebase more maintainable
+- **Consistent setup** - all entities created with same helper get same components
 
-- **Conditional component addition** - easily add optional components based on configuration flags
+- **Centralized logic** - change component requirements in one place
 
-- **Single [[Structural changes|structural change]]** - adding multiple components in one call is more efficient than multiple individual adds
+- **Performance** - batch add faster than multiple individual AddComponent calls
 
-- **Self-documenting** - helper methods clearly show what components are needed for specific entity types
+- **Conditional logic** - can add different components based on parameters
 
 #### Cons
-- **Extra indirection** - adds abstraction layer between component usage and addition
+- **Not type-safe** - using `ComponentType.ReadWrite<T>()` loses compile-time type checking
 
-- **Can be overused** - not every component combination needs a helper, can lead to helper explosion
+- **Initialization separate** - must set initial values separately from adding components
 
-- **Harder to discover** - developers need to know helpers exist, otherwise they might add components manually
+- **Runtime overhead** - building FixedList has small cost vs compile-time archetype
 
-- **Update maintenance** - when component requirements change, must update helper methods
+- **Limited flexibility** - harder to vary component combinations than with archetypes
 
 #### Best use
-- **Complex entity types** - rendering entities, physics entities, characters that need many interdependent components
+- **Complex entity types** - entities requiring many interdependent components (rendering, physics, AI)
 
-- **Framework/package APIs** - when building reusable systems that other developers will use (like Unity's Entities Graphics)
+- **Conditional composition** - when component set varies based on parameters (player vs enemy)
 
-- **[[Baking]] utilities** - simplify baker code by bundling common component additions
+- **Framework APIs** - packages providing entity creation utilities (Unity.Entities.Graphics)
 
-- **Entity archetypes** - when you have well-defined entity types (enemy, player, bullet) with specific component sets
-
-- **Conditional features** - when entities need different component sets based on configuration (player vs AI, static vs dynamic)
+- **Consistency critical** - when forgetting a component causes bugs
 
 #### Avoid if
-- **Simple entities** - entities with 1-2 components don't need helpers, direct addition is clearer
+- **Simple entities** - 1-2 components easier to add directly
 
-- **Unique combinations** - if component set is only used once, helper adds unnecessary abstraction
+- **Fixed composition** - if components never vary, use [[Reusable Archetype Groups]] instead
 
-- **Frequently changing requirements** - if component needs change often, helper becomes maintenance burden
+- **Performance critical** - creating FixedList adds overhead vs direct archetype creation
 
-- **Performance-critical paths** - in tight loops, direct component addition might be slightly faster (though difference is minimal)
+- **Type safety required** - pattern loses compile-time type checking
 
 #### Extra tip
-- **FixedList128Bytes capacity** - can hold ~20-30 ComponentType entries depending on platform, use FixedList512Bytes for larger sets
+- **Unity.Entities.Graphics example**: `RenderMeshUtility.AddComponents()` is production example
 
-- **ComponentTypeSet efficiency** - Unity optimizes batch component addition internally, significantly faster than individual adds
+- **Combine with archetypes**: Can use helper method to add components to entity created from archetype
 
-- **Combine with [[Archetype]] patterns** - can create EntityArchetype from ComponentTypeSet for even faster entity creation:
+- **FixedList capacity**: `FixedList128Bytes` holds ~16 ComponentTypes, use `FixedList512Bytes` for more
+
+- **ECB support**: Can use ComponentTypeSet with [[EntityCommandBuffer]]:
   ```csharp
-  var archetype = entityManager.CreateArchetype(componentSet);
-  Entity entity = entityManager.CreateEntity(archetype);
+  var components = new ComponentTypeSet(/* ... */);
+  ecb.AddComponent(entity, components);
   ```
 
-- **Extension methods pattern** - can make helpers more discoverable:
+- **Naming convention**: Suffix utility class with `Utility` (CharacterUtility, RenderUtility)
+
+- **Initialization pattern**: Set component values immediately after adding:
   ```csharp
-  public static class EntityManagerExtensions
-  {
-      public static void AddCharacterComponents(this EntityManager em, Entity entity, bool isPlayer)
-      {
-          CharacterUtility.AddCharacterComponents(entity, em, isPlayer);
-      }
-  }
-  // Usage: entityManager.AddCharacterComponents(entity, true);
+  em.AddComponent(entity, componentSet);
+  em.SetComponentData(entity, new Health { Max = 100 });
   ```
 
-- **Builder pattern alternative** - for complex entities, consider fluent builder:
+- **Alternative - extension methods**: Can implement as extension methods on EntityManager:
   ```csharp
-  new EntityBuilder(entityManager, entity)
-      .WithHealth(100)
-      .WithMovement(5f)
-      .AsPlayer()
-      .Build();
+  public static void AddCharacterComponents(this EntityManager em, Entity entity) { }
   ```
 
-- **Documentation** - document helper methods with XML comments explaining what components are added and why
+- **Combining patterns**: Use with [[Auto-Add System Pattern]] - helper adds base components, system auto-adds supporting ones
 
-- **Unity's official examples:**
-  - `RenderMeshUtility.AddComponents()` - Entities Graphics
-  - `PhysicsUtility.AddComponents()` - Unity Physics (custom)
-  - Check Unity's official packages for more examples
+- **Testing**: Helper methods make tests cleaner by encapsulating entity creation
 
-- **Static class organization** - group helpers by domain (PhysicsUtility, RenderUtility, CharacterUtility) for better code organization
-
-- **Validation in helpers** - add runtime checks to validate component compatibility:
-  ```csharp
-  if (isDynamic && !hasPhysicsCollider)
-  {
-      throw new ArgumentException("Dynamic physics entities require PhysicsCollider");
-  }
-  ```
-
-- **Default values** - set sensible defaults after adding components to ensure entities are immediately usable
-
-- **Naming conventions:**
-  - `Add[Type]Components` - for adding component sets
-  - `Create[Type]Entity` - for creating entity with components
-  - `Configure[Type]` - for setting up existing entity
-
-- **Performance tip** - create ComponentTypeSet once and reuse if adding same components to many entities:
-  ```csharp
-  private static readonly ComponentTypeSet CharacterComponents = new ComponentTypeSet(
-      new FixedList128Bytes<ComponentType> { /* ... */ });
-  ```
-
-- **Combining with Auto-Add System Pattern** - helpers are for initial entity creation, Auto-Add Systems ensure supporting components persist if manually removed
-
-- **Debugging** - use Entity Debugger to verify all expected components were added by helper
-
-- **Testing helpers** - write unit tests to verify helpers add expected components and set correct initial values
+- **Best practices**: Document which components are added and why, include parameter validation, set sensible defaults

@@ -5,11 +5,11 @@ tags:
 #### Description
 - **Collection storage pattern** using `NativeParallelMultiHashMap<TKey, TValue>` to store one-to-many relationships between entities, most commonly parent-to-children mappings
 
-- Allows storing multiple values (children entities) per key (parent entity) with efficient parallel-safe access, perfect for hierarchies and groupings
+- Allows multiple values (children) per key (parent) with efficient parallel-safe access, perfect for hierarchies and groupings
 
-- Standard iteration pattern uses `TryGetFirstValue()` followed by `do-while` loop with `TryGetNextValue()` to iterate all values for a given key
+- Standard iteration uses `TryGetFirstValue()` followed by `do-while` loop with `TryGetNextValue()` to iterate all values for key
 
-- [[Thread-safe]] parallel writes and reads make it ideal for jobs that need to build or query entity relationships
+- [[Thread-safe]] parallel writes and reads make it ideal for jobs building or querying entity relationships
 
 #### Example
 ```csharp
@@ -19,10 +19,8 @@ public partial struct BuildParentChildMapJob : IJobEntity
 {
     public NativeParallelMultiHashMap<Entity, Entity>.ParallelWriter ChildMap;
 
-    [BurstCompile]
     public void Execute(Entity entity, in Parent parent)
     {
-        // Add child entity to parent's list
         ChildMap.Add(parent.Value, entity);
     }
 }
@@ -30,10 +28,9 @@ public partial struct BuildParentChildMapJob : IJobEntity
 [BurstCompile]
 public partial struct ParentChildSystem : ISystem
 {
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // Create map with estimated capacity (parent count)
+        // Create map with estimated capacity
         var childMap = new NativeParallelMultiHashMap<Entity, Entity>(
             100,  // Estimated capacity
             Allocator.TempJob);
@@ -47,255 +44,111 @@ public partial struct ParentChildSystem : ISystem
         state.Dependency.Complete();
 
         // Iterate all children for each parent
-        foreach (var (parentEntity, transform) in
-            SystemAPI.Query<RefRO<LocalTransform>>()
-                .WithAll<Parent>()
-                .WithEntityAccess())
+        foreach (var parentEntity in
+            SystemAPI.QueryBuilder().WithAll<Parent>().Build().ToEntityArray(Allocator.Temp))
         {
             // Check if parent has children
             if (childMap.TryGetFirstValue(parentEntity, out Entity child, out var iterator))
             {
-                // Process first child
-                ProcessChild(ref state, child);
+                ProcessChild(child);
 
                 // Iterate remaining children
                 while (childMap.TryGetNextValue(out child, ref iterator))
                 {
-                    ProcessChild(ref state, child);
+                    ProcessChild(child);
                 }
             }
         }
 
         childMap.Dispose();
     }
-
-    private static void ProcessChild(ref SystemState state, Entity child)
-    {
-        // Process child entity
-    }
 }
+```
 
-// Example: Group entities by type
-public struct EnemyType : IComponentData
+**Standard iteration pattern:**
+```csharp
+if (map.TryGetFirstValue(key, out TValue value, out var iterator))
 {
-    public int TypeID;
-}
+    // Process first value
+    DoSomething(value);
 
-[BurstCompile]
-public partial struct GroupEnemiesByTypeSystem : ISystem
-{
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
+    // Process remaining values
+    while (map.TryGetNextValue(out value, ref iterator))
     {
-        // Map from TypeID to list of enemy entities
-        var enemiesByType = new NativeParallelMultiHashMap<int, Entity>(
-            100,
-            Allocator.TempJob);
-
-        // Build map
-        foreach (var (enemyType, entity) in
-            SystemAPI.Query<RefRO<EnemyType>>()
-                .WithEntityAccess())
-        {
-            enemiesByType.Add(enemyType.ValueRO.TypeID, entity);
-        }
-
-        // Process all enemies of type 1
-        if (enemiesByType.TryGetFirstValue(1, out Entity enemy, out var iterator))
-        {
-            do
-            {
-                // Process enemy of type 1
-            }
-            while (enemiesByType.TryGetNextValue(out enemy, ref iterator));
-        }
-
-        enemiesByType.Dispose();
-    }
-}
-
-// Example: Spatial hashing for collision detection
-[BurstCompile]
-public partial struct SpatialHashingSystem : ISystem
-{
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        // Map from grid cell to entities in that cell
-        var spatialHash = new NativeParallelMultiHashMap<int2, Entity>(
-            1000,
-            Allocator.TempJob);
-
-        var spatialHashWriter = spatialHash.AsParallelWriter();
-
-        // Build spatial hash in parallel
-        new HashEntitiesJob
-        {
-            SpatialHash = spatialHashWriter
-        }.ScheduleParallel();
-
-        state.Dependency.Complete();
-
-        // Query entities in specific cell
-        int2 cellToQuery = new int2(5, 5);
-
-        if (spatialHash.TryGetFirstValue(cellToQuery, out Entity entity, out var iterator))
-        {
-            do
-            {
-                // Process entities in same cell (potential collision)
-            }
-            while (spatialHash.TryGetNextValue(out entity, ref iterator));
-        }
-
-        spatialHash.Dispose();
-    }
-}
-
-[BurstCompile]
-public partial struct HashEntitiesJob : IJobEntity
-{
-    public NativeParallelMultiHashMap<int2, Entity>.ParallelWriter SpatialHash;
-
-    [BurstCompile]
-    public void Execute(Entity entity, in LocalTransform transform)
-    {
-        // Convert world position to grid cell
-        int2 cell = new int2(
-            (int)math.floor(transform.Position.x / 10f),
-            (int)math.floor(transform.Position.z / 10f));
-
-        SpatialHash.Add(cell, entity);
-    }
-}
-
-// Example: Using statement for automatic disposal
-[BurstCompile]
-public partial struct UsingStatementExampleSystem : ISystem
-{
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        // Using statement ensures disposal even if exception thrown
-        using var childMap = new NativeParallelMultiHashMap<Entity, Entity>(
-            100,
-            Allocator.TempJob);
-
-        // Build and use map...
-        foreach (var (parent, entity) in
-            SystemAPI.Query<RefRO<Parent>>()
-                .WithEntityAccess())
-        {
-            childMap.Add(parent.ValueRO.Value, entity);
-        }
-
-        // Process map...
-        // Automatically disposed at end of using block
+        DoSomething(value);
     }
 }
 ```
 
+**Common use cases:**
+- Parent-to-children entity mappings
+- Group entities by type/category
+- Spatial partitioning (grid cell → entities)
+- Tag-based collections (faction → members)
+
 #### Pros
-- **One-to-many relationships** - natural fit for parent-children, groups, spatial hashing, and other 1:N relationships
+- **[[Thread-safe]]** - parallel reads and writes via `ParallelWriter`
 
-- **[[Thread-safe]] parallel access** - `ParallelWriter` allows multiple jobs to write simultaneously without conflicts
+- **Multiple values per key** - perfect for one-to-many relationships
 
-- **Efficient iteration** - fast sequential access to all values for a given key using iterator pattern
+- **[[Job]] compatible** - works in Burst-compiled jobs
 
-- **Flexible key types** - works with any unmanaged type (Entity, int, int2, float3, custom structs)
+- **Dynamic sizing** - grows automatically as values added
 
-- **Dynamic sizing** - automatically grows capacity as needed, though initial capacity helps performance
+- **Fast lookups** - O(1) average case for key lookup
 
 #### Cons
-- **Manual disposal required** - must call `.Dispose()` or use `using` statement to prevent memory leaks
+- **Unordered** - no guarantee on value iteration order
 
-- **Unordered values** - values for a key are not guaranteed to be in insertion order
+- **Memory overhead** - hash table structure adds memory cost
 
-- **No duplicate prevention** - same key-value pair can be added multiple times if not careful
+- **Must dispose** - manual memory management required
 
-- **Memory overhead** - hash table overhead compared to simple arrays, especially for small collections
+- **Duplicates allowed** - can add same value multiple times for same key
 
-- **Not Burst-compatible in some contexts** - creation/disposal must happen in main thread context in some Unity versions
+- **No value removal** - can only clear entire map, not individual values
 
 #### Best use
-- **Parent-child hierarchies** - build temporary maps of parent to children for hierarchy traversal
+- **Parent-child hierarchies** - building temporary parent→children maps
 
-- **Entity grouping** - group entities by type, team, faction, state for batch processing
+- **Entity grouping** - group entities by type, faction, or category
 
-- **Spatial hashing** - map grid cells to entities for efficient spatial queries and collision detection
+- **Spatial queries** - map grid cells to entities for proximity queries
 
-- **Dependency tracking** - map entities to their dependents for propagating changes
+- **Relationship tracking** - any one-to-many entity relationships
 
-- **Temporary lookups** - build lookup tables for single-frame processing then dispose
+- **Parallel collection** - when multiple jobs need to build collection simultaneously
 
 #### Avoid if
-- **Need persistent storage** - use [[IBufferElementData (dynamic buffers)|DynamicBuffer]] on entities for persistent one-to-many relationships
+- **Ordered iteration needed** - use NativeList or DynamicBuffer instead
 
-- **Simple 1:1 mapping** - use `NativeHashMap` (not multi) for one-to-one relationships
+- **Single value per key** - use `NativeHashMap<TKey, TValue>` instead
 
-- **Need ordered values** - hash map doesn't preserve order, use [[IBufferElementData (dynamic buffers)|DynamicBuffer]] if order matters
+- **Persistent storage** - multimap is temporary, use buffers for persistent relationships
 
-- **Very small collections** - for <10 items, linear search in array may be faster than hash lookups
+- **Value removal needed** - can't remove individual values, only clear all
 
 #### Extra tip
-- **Standard iteration pattern** - always use `TryGetFirstValue` + `do-while` + `TryGetNextValue`:
+- **Capacity estimation**: Pre-allocate with estimated size to avoid reallocation: `new NativeParallelMultiHashMap<K, V>(estimatedSize, Allocator)`
+
+- **Count values per key**: Use `CountValuesForKey(key)` to check how many values before iterating
+
+- **Parallel writer**: Call `.AsParallelWriter()` for thread-safe adds in parallel jobs
+
+- **Disposal**: Always dispose in same system that creates it, or use try-finally
+
+- **Alternative - buffers**: For persistent relationships, use [[IBufferElementData (dynamic buffers)|DynamicBuffer]] on parent entity instead
+
+- **Duplicate prevention**: Check `ContainsKey` before adding to avoid duplicates:
   ```csharp
-  if (map.TryGetFirstValue(key, out var value, out var iterator))
-  {
-      do
-      {
-          // Process value
-      }
-      while (map.TryGetNextValue(out value, ref iterator));
-  }
+  if (!map.ContainsKey(key))
+      map.Add(key, value);
   ```
 
-- **Using statement for cleanup** - wrap in `using` for automatic disposal:
-  ```csharp
-  using var map = new NativeParallelMultiHashMap<Entity, Entity>(100, Allocator.TempJob);
-  // Automatically disposed at end of scope
-  ```
+- **Empty check**: Use `IsEmpty` or `Count()` to check if map has any entries
 
-- **Capacity estimation** - set initial capacity to approximate expected size to avoid costly resizes:
-  ```csharp
-  int estimatedParents = query.CalculateEntityCount();
-  var map = new NativeParallelMultiHashMap<Entity, Entity>(estimatedParents, Allocator.TempJob);
-  ```
+- **Allocator choice**: Use `Allocator.TempJob` for jobs, `Allocator.Temp` for single-frame main thread
 
-- **Parallel writer usage** - always use `.AsParallelWriter()` in parallel jobs:
-  ```csharp
-  new MyJob { Map = childMap.AsParallelWriter() }.ScheduleParallel();
-  ```
+- **Performance tip**: Pre-size map capacity to avoid dynamic growth overhead
 
-- **ContainsKey check** - use `ContainsKey(key)` to check if key exists before iteration
-
-- **Count values per key** - use `CountValuesForKey(key)` to get number of values for a key without iterating
-
-- **Remove operations** - can remove specific key-value pairs with `Remove(key, value)` or all values for key with `Remove(key)`
-
-- **Clear vs Dispose** - `Clear()` removes all items but keeps capacity, `Dispose()` frees memory
-
-- **Allocator choice:**
-  - `Allocator.Temp` - single frame, main thread only (fastest)
-  - `Allocator.TempJob` - up to 4 frames, job-safe (most common)
-  - `Allocator.Persistent` - long-lived, must manually dispose
-
-- **Thread safety** - reads and parallel writes are safe, but sequential writes from different jobs need synchronization
-
-- **Key uniqueness** - can add same key multiple times with different values (that's the "Multi" in MultiHashMap)
-
-- **Performance tips:**
-  - Pre-allocate with estimated capacity
-  - Use Allocator.TempJob for job usage
-  - Dispose immediately after use to free memory
-  - Avoid frequent allocations, reuse if possible
-
-- **Debugging** - check `Count()` and `Capacity` properties to verify expected size and catch leaks
-
-- **Alternative collections:**
-  - `NativeHashMap<K,V>` - one value per key
-  - `NativeList<T>` - simple dynamic array
-  - `DynamicBuffer<T>` - per-entity dynamic arrays
-  - `NativeParallelHashSet<T>` - set of unique values
-
-- **Unity packages using this** - Unity.Transforms and Unity.Physics use this pattern extensively for parent-child and collision queries
+- **Combining patterns**: Use with [[ComponentLookup and BufferLookup]] to efficiently process grouped entities

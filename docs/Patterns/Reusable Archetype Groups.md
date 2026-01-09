@@ -3,45 +3,37 @@ tags:
   - pattern
 ---
 #### Description
-- **[[Archetype]] caching pattern** that defines reusable component combinations in a struct, allowing multiple systems to reference the same archetype definitions without duplication
+- **[[Archetype]] caching pattern** defining reusable component combinations in struct, allowing multiple systems to reference same archetype definitions
 
-- Typically implemented as static helper methods that return archetype collections or `ComponentTypeSet`, centralizing archetype definitions in one location
+- Implemented as static helper returning archetype collections, centralizing archetype definitions in one location
 
-- Useful when multiple systems need to create entities with the same component combinations or query similar archetypes
+- Useful when multiple systems create entities with same component combinations or query similar archetypes
 
-- Unity's `Unity.Scenes` package uses this pattern with `CreateResolveSceneSectionArchetypes()` to share archetype definitions across scene loading systems
+- Unity's `Unity.Scenes` uses this with `CreateResolveSceneSectionArchetypes()` to share definitions across scene loading systems
 
 #### Example
 ```csharp
-// Example from Unity.Scenes (simplified concept)
+// Define reusable archetype group
 public struct SceneArchetypes
 {
-    public EntityArchetype ResolvedSectionEntity;
-    public EntityArchetype RequestSceneLoaded;
-    public EntityArchetype SceneMetaData;
+    public EntityArchetype ResolvedSection;
+    public EntityArchetype RequestLoaded;
+    public EntityArchetype MetaData;
 
-    public static SceneArchetypes Create(EntityManager entityManager)
+    public static SceneArchetypes Create(EntityManager em)
     {
         return new SceneArchetypes
         {
-            // Define archetype for resolved scene section
-            ResolvedSectionEntity = entityManager.CreateArchetype(
+            ResolvedSection = em.CreateArchetype(
                 ComponentType.ReadWrite<SceneSectionData>(),
-                ComponentType.ReadWrite<ResolvedSectionEntity>(),
-                ComponentType.ReadWrite<LinkedEntityGroup>()
-            ),
+                ComponentType.ReadWrite<LinkedEntityGroup>()),
 
-            // Define archetype for scene load request
-            RequestSceneLoaded = entityManager.CreateArchetype(
+            RequestLoaded = em.CreateArchetype(
                 ComponentType.ReadWrite<RequestSceneLoaded>(),
-                ComponentType.ReadWrite<SceneReference>()
-            ),
+                ComponentType.ReadWrite<SceneReference>()),
 
-            // Define archetype for scene metadata
-            SceneMetaData = entityManager.CreateArchetype(
-                ComponentType.ReadWrite<SceneMetaData>(),
-                ComponentType.ReadWrite<ResolvedSectionEntity>()
-            )
+            MetaData = em.CreateArchetype(
+                ComponentType.ReadWrite<SceneMetaData>())
         };
     }
 }
@@ -54,358 +46,78 @@ public partial struct SceneLoadingSystem : ISystem
 
     public void OnCreate(ref SystemState state)
     {
-        // Create archetypes once
         _archetypes = SceneArchetypes.Create(state.EntityManager);
     }
 
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // Reuse archetypes for entity creation
-        Entity sceneEntity = state.EntityManager.CreateEntity(_archetypes.RequestSceneLoaded);
-        // Set component data...
-    }
-}
-
-// Example: Character archetypes
-public struct CharacterArchetypes
-{
-    public EntityArchetype Player;
-    public EntityArchetype Enemy;
-    public EntityArchetype NPC;
-
-    public static CharacterArchetypes Create(EntityManager em)
-    {
-        return new CharacterArchetypes
-        {
-            Player = em.CreateArchetype(
-                ComponentType.ReadWrite<Health>(),
-                ComponentType.ReadWrite<CharacterController>(),
-                ComponentType.ReadWrite<PlayerInput>(),
-                ComponentType.ReadWrite<Inventory>(),
-                ComponentType.ReadWrite<LocalTransform>()
-            ),
-
-            Enemy = em.CreateArchetype(
-                ComponentType.ReadWrite<Health>(),
-                ComponentType.ReadWrite<CharacterController>(),
-                ComponentType.ReadWrite<AIController>(),
-                ComponentType.ReadWrite<LocalTransform>(),
-                ComponentType.ReadWrite<Target>()
-            ),
-
-            NPC = em.CreateArchetype(
-                ComponentType.ReadWrite<CharacterController>(),
-                ComponentType.ReadWrite<DialogueData>(),
-                ComponentType.ReadWrite<LocalTransform>()
-            )
-        };
-    }
-}
-
-// Multiple systems using same archetypes
-[BurstCompile]
-public partial struct PlayerSpawnSystem : ISystem
-{
-    private CharacterArchetypes _archetypes;
-
-    public void OnCreate(ref SystemState state)
-    {
-        _archetypes = CharacterArchetypes.Create(state.EntityManager);
-    }
-
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        // Use player archetype
-        Entity player = state.EntityManager.CreateEntity(_archetypes.Player);
-        state.EntityManager.SetComponentData(player, new Health { Current = 100, Max = 100 });
-        // ...
-    }
-}
-
-[BurstCompile]
-public partial struct EnemySpawnSystem : ISystem
-{
-    private CharacterArchetypes _archetypes;
-
-    public void OnCreate(ref SystemState state)
-    {
-        _archetypes = CharacterArchetypes.Create(state.EntityManager);
-    }
-
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        // Use enemy archetype
-        Entity enemy = state.EntityManager.CreateEntity(_archetypes.Enemy);
-        state.EntityManager.SetComponentData(enemy, new Health { Current = 50, Max = 50 });
-        // ...
-    }
-}
-
-// Example: Projectile archetypes with variants
-public struct ProjectileArchetypes
-{
-    public EntityArchetype SimpleBullet;
-    public EntityArchetype Rocket;
-    public EntityArchetype LaserBeam;
-
-    public static ProjectileArchetypes Create(EntityManager em)
-    {
-        // Shared components
-        var baseComponents = new FixedList128Bytes<ComponentType>
-        {
-            ComponentType.ReadWrite<LocalTransform>(),
-            ComponentType.ReadWrite<Velocity>(),
-            ComponentType.ReadWrite<Lifetime>(),
-            ComponentType.ReadWrite<Damage>()
-        };
-
-        return new ProjectileArchetypes
-        {
-            SimpleBullet = em.CreateArchetype(baseComponents),
-
-            Rocket = em.CreateArchetype(
-                baseComponents,
-                ComponentType.ReadWrite<HomingTarget>(),
-                ComponentType.ReadWrite<ExplosionRadius>()
-            ),
-
-            LaserBeam = em.CreateArchetype(
-                baseComponents,
-                ComponentType.ReadWrite<BeamRenderer>(),
-                ComponentType.ReadWrite<ContinuousDamage>()
-            )
-        };
-    }
-}
-
-// Example: Pooling archetypes
-public struct PooledArchetypes
-{
-    public EntityArchetype PooledEntity;
-    public EntityArchetype ActiveEntity;
-
-    public static PooledArchetypes Create(EntityManager em)
-    {
-        return new PooledArchetypes
-        {
-            // Pooled entities have Disabled tag
-            PooledEntity = em.CreateArchetype(
-                ComponentType.ReadWrite<Pooled>(),
-                ComponentType.ReadWrite<Disabled>()
-            ),
-
-            // Active entities without Disabled
-            ActiveEntity = em.CreateArchetype(
-                ComponentType.ReadWrite<Pooled>()
-            )
-        };
-    }
-}
-
-// Example: ComponentTypeSet approach
-public static class ComponentSets
-{
-    // Define reusable component sets
-    public static ComponentTypeSet PhysicsSet => new ComponentTypeSet(
-        ComponentType.ReadWrite<PhysicsCollider>(),
-        ComponentType.ReadWrite<PhysicsVelocity>(),
-        ComponentType.ReadWrite<PhysicsMass>()
-    );
-
-    public static ComponentTypeSet RenderSet => new ComponentTypeSet(
-        ComponentType.ReadWrite<RenderMesh>(),
-        ComponentType.ReadWrite<WorldRenderBounds>(),
-        ComponentType.ReadWrite<MaterialMeshInfo>()
-    );
-
-    public static ComponentTypeSet TransformSet => new ComponentTypeSet(
-        ComponentType.ReadWrite<LocalTransform>(),
-        ComponentType.ReadWrite<LocalToWorld>()
-    );
-}
-
-// Usage with ComponentTypeSet
-[BurstCompile]
-public partial struct EntityFactorySystem : ISystem
-{
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
-
-        Entity entity = ecb.CreateEntity();
-        ecb.AddComponent(entity, ComponentSets.PhysicsSet);
-        ecb.AddComponent(entity, ComponentSets.RenderSet);
-        ecb.AddComponent(entity, ComponentSets.TransformSet);
-
-        ecb.Playback(state.EntityManager);
-        ecb.Dispose();
-    }
-}
-
-// Example: World-specific archetypes
-public struct SimulationArchetypes
-{
-    public EntityArchetype Particle;
-    public EntityArchetype Constraint;
-    public EntityArchetype ForceField;
-
-    public static SimulationArchetypes CreateForWorld(World world)
-    {
-        var em = world.EntityManager;
-
-        return new SimulationArchetypes
-        {
-            Particle = em.CreateArchetype(
-                ComponentType.ReadWrite<Position>(),
-                ComponentType.ReadWrite<Velocity>(),
-                ComponentType.ReadWrite<Mass>()
-            ),
-
-            Constraint = em.CreateArchetype(
-                ComponentType.ReadWrite<ConstraintData>(),
-                ComponentType.ReadWrite<ConnectedEntities>()
-            ),
-
-            ForceField = em.CreateArchetype(
-                ComponentType.ReadWrite<ForceFieldData>(),
-                ComponentType.ReadWrite<WorldRenderBounds>()
-            )
-        };
+        // Reuse archetype for entity creation
+        Entity scene = state.EntityManager.CreateEntity(_archetypes.RequestLoaded);
     }
 }
 ```
 
+**Pattern structure:**
+1. Define struct with `EntityArchetype` fields
+2. Static `Create()` method builds all archetypes
+3. Systems call `Create()` in `OnCreate()`, store in field
+4. Use stored archetypes for entity creation
+
 #### Pros
-- **Eliminates duplication** - archetype definitions shared across systems, reducing copy-paste errors
+- **No duplication** - archetype definitions centralized, avoiding copy-paste errors
 
-- **Centralized definitions** - all archetypes for a feature/domain defined in one place, easier to maintain
+- **Performance** - archetypes created once and reused, avoiding repeated lookup
 
-- **Type safety** - struct members provide compile-time checking of archetype names
+- **Consistency** - guarantees all systems use same component combinations
 
-- **Performance** - archetype creation happens once in OnCreate, not every frame
+- **Maintainability** - change archetype in one place, all systems automatically updated
 
-- **Consistency** - ensures all systems use identical component combinations for same entity types
+- **Type safety** - named fields prevent using wrong archetype
 
 #### Cons
-- **Extra boilerplate** - requires defining struct and Create method, more code than inline archetype creation
+- **Memory overhead** - each system stores archetype references
 
-- **Less flexible** - harder to create one-off archetypes, encourages creating more reusable types
+- **Initialization requirement** - must call `Create()` in OnCreate
 
-- **Memory overhead** - struct instance stored per system, though archetypes themselves are shared
+- **Not dynamic** - archetype definitions static, can't vary at runtime
 
-- **Can be overused** - not every archetype needs to be in shared struct, simple one-off archetypes are fine inline
+- **Overhead for simple cases** - overkill for 1-2 archetypes used once
 
 #### Best use
-- **Multiple systems creating same entities** - when 3+ systems create entities with identical component sets
+- **Shared entity types** - multiple systems create same entity types (scenes, projectiles, effects)
 
-- **Complex features** - scene loading, physics, networking where many archetypes are related
+- **Complex archetypes** - entities with many components where duplication error-prone
 
-- **Framework/package development** - when building reusable systems for other developers
+- **Framework systems** - packages providing reusable systems (like Unity.Scenes)
 
-- **Entity variants** - when you have multiple variants of similar entities (player/enemy/NPC, different projectile types)
-
-- **Large projects** - projects with dozens of entity types benefit from centralized archetype management
+- **Large projects** - consistency important across many systems
 
 #### Avoid if
-- **Simple projects** - small projects with few entity types don't need this organization
+- **Single use** - archetype only used in one system, no need to share
 
-- **One-off archetypes** - archetypes used in single system are fine to define inline
+- **Simple archetypes** - 1-2 components easier to define inline
 
-- **Frequently changing** - if entity structure changes often, maintaining centralized definitions is overhead
+- **Dynamic archetypes** - if composition varies at runtime, pattern doesn't fit
 
-- **Baking entities** - entities created during [[Baking]] don't benefit from runtime archetype caching
+- **Small projects** - overhead not justified for few systems
 
 #### Extra tip
-- **Naming conventions** - suffix struct with `Archetypes` or prefix with domain (`SceneArchetypes`, `CharacterArchetypes`)
+- **Unity.Scenes example**: Check Unity.Scenes package source for production implementation
 
-- **Static Create method** - use static factory method pattern for clean initialization:
-  ```csharp
-  _archetypes = CharacterArchetypes.Create(state.EntityManager);
-  ```
+- **ComponentTypeSet alternative**: Can return `ComponentTypeSet` instead of `EntityArchetype` for more flexibility
 
-- **Cache in system OnCreate** - create archetypes once in `OnCreate`, store in system field:
-  ```csharp
-  private CharacterArchetypes _archetypes;
-  public void OnCreate(ref SystemState state)
-  {
-      _archetypes = CharacterArchetypes.Create(state.EntityManager);
-  }
-  ```
+- **Combine with factories**: Use with [[Entity Factory with Archetype]] pattern for complete entity creation encapsulation
 
-- **Per-World archetypes** - archetypes are World-specific, can't share across Worlds:
-  ```csharp
-  public static SimulationArchetypes CreateForWorld(World world)
-  ```
+- **Partial application**: Can define some archetypes in struct, others inline in systems
 
-- **Shared components** - can use `FixedList` to build base component sets:
-  ```csharp
-  var baseComponents = new FixedList128Bytes<ComponentType> { /* ... */ };
-  var archetype = em.CreateArchetype(baseComponents);
-  ```
+- **Naming convention**: Suffix struct with `Archetypes` for clarity (SceneArchetypes, CharacterArchetypes)
 
-- **Archetype extensions** - can extend archetypes by adding more components:
-  ```csharp
-  // Base archetype
-  var baseArchetype = em.CreateArchetype(baseComponents);
+- **Capacity hint**: When creating archetypes, can provide initial capacity hint for buffers
 
-  // Extended archetype with additional components
-  var extendedArchetype = em.CreateArchetype(
-      baseComponents,
-      ComponentType.ReadWrite<ExtraComponent>()
-  );
-  ```
+- **Burst compatibility**: Archetype references are Burst-compatible, entire pattern works in Burst
 
-- **Unity.Scenes example** - check `Unity.Scenes` package source for `CreateResolveSceneSectionArchetypes()` implementation
+- **Testing**: In tests, can create archetypes struct to ensure test entities match production
 
-- **Documentation** - document what each archetype is for and what systems use it
+- **Documentation**: Document each archetype field's purpose and when to use
 
-- **ComponentTypeSet alternative** - for adding to existing entities, ComponentTypeSet may be more appropriate than archetypes:
-  ```csharp
-  public static ComponentTypeSet PhysicsComponents => new ComponentTypeSet(/* ... */);
-  ```
-
-- **Prefab alternative** - for static entity types, consider using entity prefabs instead of archetypes:
-  ```csharp
-  Entity instance = em.Instantiate(prefabEntity);
-  ```
-
-- **Combining patterns** - combine with [[Helper Methods for Component Sets]] for flexible entity creation:
-  ```csharp
-  // Archetype for base structure
-  Entity entity = em.CreateEntity(_archetypes.Character);
-
-  // Helper for conditional components
-  CharacterUtility.AddOptionalComponents(entity, em, isPlayer: true);
-  ```
-
-- **System groups** - archetypes used by systems in same group can be defined in group-level struct
-
-- **Editor workflow** - can expose archetype struct in inspector for debugging/validation
-
-- **Testing** - tests can create archetype struct to ensure consistent entity creation
-
-- **Migration friendly** - when refactoring entity structure, only need to update archetype definition, not all usage sites
-
-- **Performance consideration** - archetype creation is fast but not free, create in OnCreate not OnUpdate
-
-- **Burst compatibility** - archetype structs work in Burst-compiled code when created in OnCreate
-
-- **Best practices:**
-  - One archetype struct per feature/domain
-  - Name archetypes descriptively
-  - Document component purpose
-  - Keep Create method focused on archetype creation only
-  - Store in system field, not as singleton component
-
-- **Alternative pattern - Singleton archetype storage** - can store archetypes in singleton component for cross-system access:
-  ```csharp
-  public struct CharacterArchetypesSingleton : IComponentData
-  {
-      public EntityArchetype Player;
-      public EntityArchetype Enemy;
-  }
-  ```
+- **Incremental adoption**: Can start with most commonly duplicated archetypes, add others gradually

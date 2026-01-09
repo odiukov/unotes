@@ -3,185 +3,111 @@ tags:
   - pattern
   - system
 ---
-
 #### Description
-- **Convenience API** with static methods covering functionality from [[World]], [[EntityManager]], and SystemState - provides unified interface for common ECS operations
+- **Convenience API** with static methods covering functionality from [[World]], [[EntityManager]], and SystemState - unified interface for common ECS operations
 
-- **Source-generated** - methods work in [[ISystem]] and [[IJobEntity]] (but not IJobChunk) through compile-time code generation for optimal performance
+- **Source-generated** - methods work in [[ISystem]] and [[IJobEntity]] through compile-time code generation for optimal performance
 
-- **Preferred entry point** - check SystemAPI first before EntityManager or SystemState for most operations, ensuring consistent code between systems and jobs
+- **Preferred entry point** - check SystemAPI first before EntityManager or SystemState for most operations
 
-- **Automatic dependency tracking** - methods called in systems automatically register component access for [[System Dependencies|dependency management]]
+- **Automatic dependency tracking** - methods automatically register component access for [[System Dependencies|dependency management]]
 
 #### Example
 ```csharp
-using Unity.Entities;
-using Unity.Mathematics;
-
 [BurstCompile]
 public partial struct MovementSystem : ISystem
 {
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         // Time access
         float deltaTime = SystemAPI.Time.DeltaTime;
-        double elapsedTime = SystemAPI.Time.ElapsedTime;
 
-        // Query iteration - most common pattern
+        // Query iteration
         foreach (var (transform, velocity) in
             SystemAPI.Query<RefRW<LocalTransform>, RefRO<Velocity>>())
         {
             transform.ValueRW.Position += velocity.ValueRO.Value * deltaTime;
         }
 
-        // Get singleton
+        // Singleton access
         var config = SystemAPI.GetSingleton<GameConfig>();
-
-        // Set singleton
         SystemAPI.SetSingleton(new GameConfig { Speed = 10f });
 
-        // Check singleton existence
         if (SystemAPI.HasSingleton<PlayerInput>())
         {
-            var input = SystemAPI.GetSingleton<PlayerInput>();
+            Entity entity = SystemAPI.GetSingletonEntity<GameConfig>();
         }
-
-        // Get entity from singleton
-        Entity configEntity = SystemAPI.GetSingletonEntity<GameConfig>();
 
         // Component lookup
         var healthLookup = SystemAPI.GetComponentLookup<Health>(isReadOnly: true);
-        if (healthLookup.TryGetComponent(someEntity, out Health health))
-        {
-            // Process health...
-        }
 
         // Buffer lookup
         var waypointLookup = SystemAPI.GetBufferLookup<Waypoint>(isReadOnly: false);
 
-        // Get entity query
+        // Query builder
         var query = SystemAPI.QueryBuilder()
-            .WithAll<Health, Transform>()
+            .WithAll<Health>()
             .WithNone<Dead>()
             .Build();
     }
 }
-
-// Works in IJobEntity too
-[BurstCompile]
-public partial struct DamageJob : IJobEntity
-{
-    public float DeltaTime;
-
-    private void Execute(ref Health health, in DamageOverTime dot)
-    {
-        // SystemAPI works the same in jobs
-        health.Current -= dot.DamagePerSecond * DeltaTime;
-    }
-}
 ```
 
+**Common methods:**
+- `SystemAPI.Time.DeltaTime` - frame delta time
+- `SystemAPI.Query<T>()` - iterate entities
+- `SystemAPI.GetSingleton<T>()` - read singleton
+- `SystemAPI.GetSingletonRW<T>()` - write singleton
+- `SystemAPI.GetComponentLookup<T>()` - random access
+- `SystemAPI.QueryBuilder()` - build custom queries
+
 #### Pros
-- **Unified API** - same methods work in systems and jobs, enabling easy code copy-paste between contexts
+- **Unified API** - same methods work in systems and jobs, easy code sharing
 
-- **Auto dependency tracking** - automatically registers component access for [[System Dependencies]], unlike direct EntityManager access
+- **Auto dependency tracking** - automatically registers component access
 
-- **Cleaner code** - reduces boilerplate compared to manually accessing SystemState or EntityManager
+- **Cleaner code** - reduces boilerplate vs manual SystemState/EntityManager
 
-- **Type-safe** - compile-time checking through source generation catches errors early
+- **Type-safe** - compile-time checking through source generation
+
+- **Consistent** - uniform API across different contexts
 
 #### Cons
-- **Limited contexts** - doesn't work in IJobChunk, must use ComponentTypeHandle and other lower-level APIs
+- **Limited contexts** - doesn't work in IJobChunk, must use ComponentTypeHandle
 
-- **Source generation requirement** - relies on compile-time code generation, can have IDE issues or confusion when generation fails
+- **Source generation requirement** - relies on compile-time codegen, IDE issues possible
 
-- **Less explicit** - hides underlying mechanisms compared to direct EntityManager/SystemState usage
+- **Less explicit** - hides underlying mechanisms vs direct EntityManager
 
-- **Learning curve** - developers must learn SystemAPI patterns in addition to EntityManager patterns
+- **Learning curve** - need to learn which methods available
 
 #### Best use
-- **System OnUpdate methods** - primary use case for iterating entities and accessing singletons
+- **ISystem implementations** - primary API for OnUpdate methods
 
-- **[[IJobEntity]] jobs** - enables consistent API between system main thread code and job code
+- **IJobEntity jobs** - consistent API between systems and jobs
 
-- **Quick prototyping** - faster development with less boilerplate than manual EntityManager usage
+- **Quick prototyping** - fast iteration without boilerplate
+
+- **Standard operations** - queries, singletons, lookups
 
 #### Avoid if
-- **IJobChunk jobs** - SystemAPI not available, must use ComponentTypeHandle, BufferTypeHandle, EntityTypeHandle directly
+- **IJobChunk** - SystemAPI not available, use ComponentTypeHandle
 
-- **Need explicit control** - when you need fine-grained control over queries, type handles, or entity access patterns
+- **Need explicit control** - if need fine-grained EntityManager control
 
-- **Outside ECS systems** - SystemAPI methods require system context, won't work in regular C# classes
+- **Source gen issues** - if IDE/build having code generation problems
 
 #### Extra tip
-- **Priority of lookup:**
-  1. Check **SystemAPI** first for common operations
-  2. Check **SystemState** if SystemAPI doesn't have what you need
-  3. Check **EntityManager** or **World** as last resort
+- **Works in jobs**: SystemAPI methods work identically in IJobEntity jobs
 
-- **Common SystemAPI patterns:**
-  ```csharp
-  // Query iteration (most common)
-  foreach (var (health, transform) in SystemAPI.Query<RefRW<Health>, RefRO<Transform>>())
-  {
-      // Process...
-  }
+- **Dependency tracking**: SystemAPI automatically adds dependencies, EntityManager doesn't
 
-  // Singleton access
-  var config = SystemAPI.GetSingleton<Config>();
-  SystemAPI.SetSingleton(new Config { Value = 10 });
-  bool exists = SystemAPI.HasSingleton<Config>();
-  Entity e = SystemAPI.GetSingletonEntity<Config>();
+- **Fallback to state**: If SystemAPI doesn't have method, use `ref SystemState state` parameter
 
-  // Lookups for random access
-  var lookup = SystemAPI.GetComponentLookup<Health>(isReadOnly: true);
-  var bufferLookup = SystemAPI.GetBufferLookup<Waypoint>(isReadOnly: false);
+- **Burst compatible**: All SystemAPI methods Burst-compatible
 
-  // Time access
-  float dt = SystemAPI.Time.DeltaTime;
-  double elapsed = SystemAPI.Time.ElapsedTime;
+- **Query caching**: SystemAPI.Query creates new query each call, cache manually for hot paths
 
-  // Query building
-  var query = SystemAPI.QueryBuilder()
-      .WithAll<A, B>()
-      .WithAny<C, D>()
-      .WithNone<E>()
-      .Build();
-  ```
+- **Time access**: `SystemAPI.Time` provides DeltaTime, ElapsedTime, frameCount
 
-- **Query with filters:**
-  ```csharp
-  foreach (var (health, transform) in
-      SystemAPI.Query<RefRW<Health>, RefRO<Transform>>()
-          .WithAll<Player>()
-          .WithNone<Dead>())
-  {
-      // Only processes entities with Health, Transform, Player (not Dead)
-  }
-  ```
-
-- **Aspect support:**
-  ```csharp
-  foreach (var characterAspect in SystemAPI.Query<CharacterAspect>())
-  {
-      characterAspect.Move(deltaTime);
-  }
-  ```
-
-- **GetComponentLookup vs GetComponent:**
-  - `GetComponentLookup<T>()` - returns lookup for random entity access by ID
-  - `GetComponent<T>(entity)` - direct component access for specific entity
-
-- **Source generation visibility** - generated code is in `Temp/GeneratedCode` folder, useful for debugging
-
-- **RefRW vs RefRO** - use `RefRW<T>` for read-write access, `RefRO<T>` for read-only access in queries
-
-## See Also
-
-- [[SystemAPI.Query]] - Entity iteration patterns
-- [[ISystem]] - Modern system implementation
-- [[SystemState]] - System state and component access
-- [[EntityManager]] - Direct entity manipulation
-- [[IJobEntity]] - Job-based entity iteration
-- [[ComponentLookup and BufferLookup]] - Random entity access
+- **Best practices**: Prefer SystemAPI over EntityManager for standard operations, use EntityManager for advanced scenarios

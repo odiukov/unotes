@@ -3,161 +3,136 @@ tags:
   - pattern
 ---
 #### Description
-- **Change detection pattern** that filters queries to only include entities where specific [[Component|components]] have changed since the last query execution
+- **Change detection pattern** filtering queries to only include entities where specific [[Component|components]] changed since last query execution
 
-- Applied via `.WithChangeFilter<T>()` on [[SystemAPI.Query]] or `EntityQuery.SetChangedVersionFilter()` to create **reactive systems** that only process modified data
+- Applied via `.WithChangeFilter<T>()` on [[SystemAPI.Query]] or `EntityQuery.SetChangedVersionFilter()` for **reactive systems** processing only modified data
 
-- Unity tracks **change versions** per [[Chunk]] - when component data is written to (via `.ValueRW`, `RefRW<T>`, or `EntityManager.SetComponentData`), the chunk's version increments
+- Unity tracks **change versions** per [[Chunk]] - when component data written via `.ValueRW`, `RefRW<T>`, or `EntityManager.SetComponentData`, chunk version increments
 
-- Massive **performance optimization** for UI, synchronization, or expensive operations that only need to happen when data changes
+- Massive **performance optimization** for UI, synchronization, or expensive operations needing to run only on data changes
 
 #### Example
 ```csharp
-// Health bar UI system - only update when health changes
+// Health bar UI - only update when health changes
 public partial struct DisplayLifeSystem : ISystem
 {
     public void OnUpdate(ref SystemState state)
     {
-        // SystemAPI.ManagedAPI for managed component access
-        // WithChangeFilter ensures this only runs for entities with changed Health
+        // WithChangeFilter ensures this only runs for changed Health
         foreach (var (health, healthBar) in
             SystemAPI.Query<RefRO<Health>, HealthBarController>()
-                .WithChangeFilter<Health>())  // Only entities where Health changed
+                .WithChangeFilter<Health>())  // Only when Health changed
         {
-            // Update UI - only when health actually changed
             healthBar.UpdateHealthBar(health.ValueRO.Current, health.ValueRO.Max);
         }
     }
 }
 
-// Multiple change filters - triggers if ANY specified component changed
+// Multiple change filters - triggers if ANY component changed
 [BurstCompile]
 public partial struct SyncTransformSystem : ISystem
 {
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach (var (transform, previousPos) in
+        foreach (var (transform, prevPos) in
             SystemAPI.Query<RefRO<LocalTransform>, RefRW<PreviousPosition>>()
-                .WithChangeFilter<LocalTransform>())  // Only when transform changed
+                .WithChangeFilter<LocalTransform>())
         {
-            // Store previous position for motion vectors
-            previousPos.ValueRW.Value = transform.ValueRO.Position;
+            prevPos.ValueRW.Value = transform.ValueRO.Position;
         }
     }
 }
 
 // Manual EntityQuery with change filter
 [BurstCompile]
-public partial struct EnemySpawnSystem : ISystem
+public partial struct SpawnSystem : ISystem
 {
-    private EntityQuery _spawnPointQuery;
+    private EntityQuery _query;
 
-    [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        // Create query with change filter
-        _spawnPointQuery = SystemAPI.QueryBuilder()
+        _query = SystemAPI.QueryBuilder()
             .WithAll<SpawnPoint, Active>()
             .Build();
-
-        // Set change filter on SpawnPoint component
-        _spawnPointQuery.SetChangedVersionFilter(typeof(SpawnPoint));
+        _query.SetChangedVersionFilter(typeof(SpawnPoint));
     }
 
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         // Only processes entities with changed SpawnPoint
-        foreach (var spawnPoint in _spawnPointQuery.ToComponentDataArray<SpawnPoint>(Allocator.Temp))
+        foreach (var spawnPoint in _query.ToComponentDataArray<SpawnPoint>(Allocator.Temp))
         {
-            // Expensive spawning logic only runs when spawn points change
-        }
-    }
-}
-
-// Combining filters
-[BurstCompile]
-public partial struct ComplexSystem : ISystem
-{
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        foreach (var (health, shield) in
-            SystemAPI.Query<RefRO<Health>, RefRO<Shield>>()
-                .WithChangeFilter<Health>()    // Trigger on health change
-                .WithAll<Active>()             // Only active entities
-                .WithNone<Dead>())             // Not dead
-        {
-            // Process entities where health changed and entity is active and not dead
+            // Expensive spawning logic only when spawn points change
         }
     }
 }
 ```
 
+**How it works:**
+- Each chunk stores change version number
+- Writing to component increments chunk's version
+- Change filter compares chunk version to last query execution
+- Only chunks with newer version are processed
+
 #### Pros
-- **Massive performance gains** - skip processing entities with unchanged data, can be 10-100x faster for reactive systems
+- **Massive performance gains** - skip processing unchanged data, can be 10-100x faster for reactive systems
 
-- **Reactive programming** - natural pattern for UI updates, synchronization, or event-driven logic
+- **Simple API** - single `.WithChangeFilter<T>()` call enables optimization
 
-- **Automatic change tracking** - Unity handles version tracking, no manual dirty flags needed
+- **[[Chunk]]-level tracking** - efficient granularity, not per-entity overhead
 
-- **[[Chunk]]-level optimization** - entire chunks with no changes are skipped in iteration
+- **Multiple filters** - can combine multiple change filters, triggers if ANY changed
+
+- **Automatic** - no manual tracking required, Unity handles version management
 
 #### Cons
-- **Chunk-level granularity** - if ANY entity in chunk changed, whole chunk is processed (not per-entity filtering)
+- **Chunk-level granularity** - if one entity in chunk changes, entire chunk reprocessed
 
-- **Write-triggers-change** - accessing `.ValueRW` marks as changed even if you don't actually modify data (use `.ValueRO` for read-only)
+- **Write-only detection** - reading component doesn't mark as changed, only writes
 
-- **False positives** - [[Structural changes]] (adding/removing components) can mark chunks as changed
+- **Not immediate** - changes tracked per-chunk, not per-entity
 
-- **State tracking** - change filters are per-query, different queries track changes independently
+- **Version overflow** - after ~4 billion changes, versions wrap (extremely rare in practice)
+
+- **Combining filters** - multiple filters use OR logic, can't specify AND requirement
 
 #### Best use
-- **UI synchronization** - health bars, name plates, score displays that update when game data changes
+- **UI updates** - health bars, nameplates, minimaps only update when values change
 
-- **Expensive post-processing** - particle effects, audio, visual effects triggered by data changes
+- **Synchronization** - network sync, physics sync only when transforms/velocities change
 
-- **Network synchronization** - only send entity updates when data actually changed
+- **Expensive operations** - pathfinding recalculation, LOD updates only when needed
 
-- **Debug/logging systems** - only log when values change, not every frame
+- **Event systems** - damage events, state changes that trigger reactions
+
+- **Optimization** - any system where most entities don't change most frames
 
 #### Avoid if
-- **Need to process all entities** - if you must process every entity every frame, change filter is counterproductive
+- **Always process all** - if system must run on all entities every frame, change filter adds overhead
 
-- **Frequent changes expected** - if component changes every frame, change filter adds overhead without benefit
+- **Frequent changes** - if component changes every frame, filter provides no benefit
 
-- **Need per-entity tracking** - change filters are chunk-level, not per-entity
+- **Need per-entity detection** - change filter is chunk-level, not entity-level
+
+- **Complex change logic** - if need to detect specific field changes, manual tracking clearer
 
 #### Extra tip
-- **How change detection works:**
-  - Each chunk has a "change version" counter per component type
-  - When `.ValueRW` is accessed or `SetComponentData` is called, counter increments
-  - Query tracks "last seen version" per component type
-  - On next query, only chunks with higher version than last seen are processed
+- **Read vs write**: Only writing marks changed - reading via `RefRO` doesn't increment version
 
-- **Read vs Write access:**
-  - `.ValueRO` on `RefRW<T>` - read-only, doesn't mark as changed
-  - `.ValueRW` on `RefRW<T>` - marks as changed, even if you don't modify
-  - `RefRO<T>` - always read-only, never marks as changed
+- **Multiple filters OR logic**: `.WithChangeFilter<A>().WithChangeFilter<B>()` triggers if A **or** B changed
 
-- **Structural changes reset** - adding/removing components, destroying entities can reset change versions, causing false positives
+- **Combining with other filters**: Can combine with `.WithAll`, `.WithNone`, etc
 
-- **Multiple component filters** - `.WithChangeFilter<T1>().WithChangeFilter<T2>()` triggers if T1 OR T2 changed (OR logic)
+- **Manual version comparison**: Can check versions manually with `EntityQuery.CalculateChunkCount()` and chunk iteration
 
-- **ResetChangeFilter** - call `query.ResetVersionFilter()` to force processing all entities next update
+- **Testing**: Create entities, modify component, verify system processes them
 
-- **SetChangedVersionFilter with ComponentType** - for manual EntityQuery, use `query.SetChangedVersionFilter(ComponentType.ReadWrite<T>())`
+- **Performance measurement**: Profile system with/without change filter to quantify benefit
 
-- **Chunk iteration optimization** - Unity skips entire chunks if no changes, making iteration very fast for sparse changes
+- **False positives**: If any entity in chunk changes, all entities in that chunk reprocessed
 
-- **Combining with other filters** - change filters work with `.WithAll`, `.WithNone`, `.WithAny` for complex reactive queries
+- **Structural changes reset**: Adding/removing components resets change versions
 
-- **Best practices:**
-  - Use `RefRO<T>` when only reading to avoid false changes
-  - Group reactive components together in same chunk for better filtering
-  - Combine change filters with other filters for precise reactive behavior
+- **Burst compatible**: Change filters work in Burst-compiled systems
 
-- **Debugging changes** - use Unity Profiler with "Record" to see when components change and triggers happen
-
-- **Version overflow** - change versions use `uint`, can theoretically overflow after ~4 billion changes (not a practical concern)
+- **Best practices**: Use for UI, sync, expensive operations; don't use for every-frame processing

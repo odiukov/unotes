@@ -13,159 +13,142 @@ tags:
 
 #### Example
 ```csharp
+// Basic query - RefRW for read-write, RefRO for read-only
 [BurstCompile]
 public partial struct HealthRegenSystem : ISystem
 {
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        float deltaTime = SystemAPI.Time.DeltaTime;
+        float dt = SystemAPI.Time.DeltaTime;
 
-        // Basic query - RefRW for read-write, RefRO for read-only
         foreach (var (health, regen) in
             SystemAPI.Query<RefRW<Health>, RefRO<HealthRegen>>())
         {
-            health.ValueRW.Current += regen.ValueRO.PointPerSec * deltaTime;
+            health.ValueRW.Current += regen.ValueRO.PointPerSec * dt;
         }
     }
 }
 
 // Query with filters
-[BurstCompile]
-public partial struct MovementSystem : ISystem
+foreach (var (transform, velocity) in
+    SystemAPI.Query<RefRW<LocalTransform>, RefRO<Velocity>>()
+        .WithAll<Active>()      // Only entities with Active
+        .WithNone<Frozen>())    // Exclude Frozen
 {
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        foreach (var (transform, velocity) in
-            SystemAPI.Query<RefRW<LocalTransform>, RefRO<Velocity>>()
-                .WithAll<Active>()      // Only entities with Active tag
-                .WithNone<Frozen>())    // Exclude entities with Frozen tag
-        {
-            transform.ValueRW.Position += velocity.ValueRO.Value * SystemAPI.Time.DeltaTime;
-        }
-    }
+    transform.ValueRW.Position += velocity.ValueRO.Value * dt;
 }
 
 // Query with entity access
-[BurstCompile]
-public partial struct DestroySystem : ISystem
+foreach (var (health, entity) in
+    SystemAPI.Query<RefRO<Health>>()
+        .WithEntityAccess())  // Adds Entity to tuple
 {
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
-
-        foreach (var (health, entity) in
-            SystemAPI.Query<RefRO<Health>>()
-                .WithEntityAccess())  // Adds Entity to tuple
-        {
-            if (health.ValueRO.Current <= 0)
-            {
-                ecb.DestroyEntity(entity);
-            }
-        }
-
-        ecb.Playback(state.EntityManager);
-        ecb.Dispose();
-    }
+    if (health.ValueRO.Current <= 0)
+        ecb.DestroyEntity(entity);
 }
 
 // Query with aspect
-[BurstCompile]
-public partial struct ProjectileSystem : ISystem
+foreach (var projectile in SystemAPI.Query<ProjectileAspect>())
 {
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        float deltaTime = SystemAPI.Time.DeltaTime;
-
-        foreach (var projectile in SystemAPI.Query<ProjectileAspect>())
-        {
-            projectile.Move(deltaTime);
-        }
-    }
+    projectile.Move(deltaTime);
 }
 
 // Query with DynamicBuffer
-[BurstCompile]
-public partial struct PathFollowSystem : ISystem
+foreach (var (transform, waypoints, pathIndex) in
+    SystemAPI.Query<RefRW<LocalTransform>, DynamicBuffer<Waypoint>, RefRW<PathIndex>>())
 {
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        foreach (var (transform, waypoints, pathIndex) in
-            SystemAPI.Query<RefRW<LocalTransform>, DynamicBuffer<Waypoints>, RefRW<NextPathIndex>>())
-        {
-            if (pathIndex.ValueRO.Value >= waypoints.Length)
-                continue;
+    // Access waypoints buffer...
+}
 
-            float3 targetPos = waypoints[pathIndex.ValueRO.Value].Position;
-            // ... movement logic
-        }
-    }
+// Multiple filters
+foreach (var (health, damage) in
+    SystemAPI.Query<RefRW<Health>, RefRO<Damage>>()
+        .WithAll<Enemy>()           // Has Enemy
+        .WithNone<Dead, Invincible>()  // Not Dead or Invincible
+        .WithAny<Burning, Poisoned>()) // Has Burning or Poisoned
+{
+    // Process...
+}
+
+// Change filter
+foreach (var (health, healthBar) in
+    SystemAPI.Query<RefRO<Health>, HealthBarUI>()
+        .WithChangeFilter<Health>())  // Only when Health changed
+{
+    healthBar.UpdateBar(health.ValueRO.Current);
 }
 ```
 
+**Query syntax:**
+- `RefRW<T>` - read-write component access
+- `RefRO<T>` - read-only component access
+- `DynamicBuffer<T>` - buffer access
+- `IAspect` - aspect access
+- `.WithEntityAccess()` - adds Entity to tuple
+- `.WithAll<T>()` - require component
+- `.WithNone<T>()` - exclude component
+- `.WithAny<T>()` - require any of components
+- `.WithChangeFilter<T>()` - only changed
+
 #### Pros
-- **Ergonomic syntax** - clean foreach loop instead of manual query creation and chunk iteration
+- **Ergonomic** - clean foreach syntax, no boilerplate
 
-- **Type safety** - components checked at compile time, errors if component types don't exist
+- **Type-safe** - components as generic parameters, compile-time checked
 
-- **Automatic query optimization** - Unity optimizes generated queries for performance
+- **Fast** - generates efficient EntityQuery, [[Burst Compile|Burst]] compatible
 
-- **[[Burst]] compatible** - fully compatible with Burst compilation for maximum performance
+- **Automatic dependencies** - registers component access for [[System Dependencies]]
 
-- **Flexible filtering** - WithAll/WithNone/WithAny enable complex query logic
+- **Flexible** - supports components, buffers, aspects, entity access
 
 #### Cons
-- **Less control than EntityQuery** - can't easily store query, get entity count, or use advanced query features
+- **Creates query each call** - not cached, overhead for hot paths
 
-- **Hidden allocations** - query object created every frame (though usually optimized away)
+- **Limited to foreach** - can't use LINQ or other patterns
 
-- **Limited to OnUpdate** - works best in OnUpdate, not suitable for queries that need to be stored or reused
+- **No manual batching** - less control than IJobChunk
+
+- **Tuple limit** - max ~7-8 components in query (compiler limit)
 
 #### Best use
-- **Simple entity iteration** - when you need to process all entities with specific components
+- **Standard iteration** - most common system pattern
 
-- **Main gameplay systems** - movement, damage, AI, spawning - most common use case
+- **Prototype/development** - quick iteration without boilerplate
 
-- **Systems with one primary query** - when system does one main iteration task
+- **Simple systems** - straightforward component processing
+
+- **Component updates** - reading/writing component data
 
 #### Avoid if
-- **Need to store query** - use manual [[EntityQuery]] field in system if you need to reuse query or check entity count
+- **Hot paths** - cache EntityQuery manually for performance-critical loops
 
-- **Complex multi-query logic** - if system needs multiple independent queries with different logic, manual queries may be clearer
+- **Complex iteration** - if need manual batching, use IJobChunk
 
-- **Need query metadata** - if you need `CalculateEntityCount()`, `IsEmpty`, or other query properties, use EntityQuery
+- **Many components** - if querying 8+ components, restructure or use aspects
 
 #### Extra tip
-- **Query builder methods:**
-  - `.WithAll<T>()` - only entities that have component T (can pass multiple types)
-  - `.WithNone<T>()` - exclude entities that have component T
-  - `.WithAny<T1, T2>()` - entities with at least one of the specified components
-  - `.WithEntityAccess()` - adds Entity to the query tuple
-  - `.WithChangeFilter<T>()` - only entities where T changed since last query
+- **Cache for performance**: For hot paths, cache query manually:
+  ```csharp
+  private EntityQuery _query;
+  public void OnCreate(ref SystemState state)
+  {
+      _query = SystemAPI.QueryBuilder().WithAll<Health>().Build();
+  }
+  ```
 
-- **Component access patterns:**
-  - `RefRW<T>` - read-write access (use `.ValueRW`)
-  - `RefRO<T>` - read-only access (use `.ValueRO`)
-  - `DynamicBuffer<T>` - buffer access for [[IBufferElementData (dynamic buffers)|IBufferElementData]]
-  - `AspectType` - aspect access for [[IAspect (component grouping)|IAspect]]
-  - `Entity` - entity ID (requires `.WithEntityAccess()`)
+- **Tuple deconstruction**: Can use `var (a, b)` or explicit types `(RefRW<Health> health, Entity entity)`
 
-- **Alternative ref/in syntax** - in [[IJobEntity]], you can use `ref T` and `in T` instead of RefRW/RefRO, but SystemAPI.Query requires RefRW/RefRO
+- **Managed components**: Use managed component types directly (not RefRW/RefRO):
+  ```csharp
+  SystemAPI.Query<Transform, ManagedData>()
+  ```
 
-- **Multiple queries** - can have multiple `SystemAPI.Query` calls in same OnUpdate - each is independent
+- **Options parameter**: Advanced options like `EntityQueryOptions.FilterWriteGroup`
 
-- **Performance tip** - query generation is optimized by compiler, minimal overhead compared to manual EntityQuery
+- **Combining filters**: Multiple `.WithAll()` calls are AND logic
 
-- **EnabledRefRW/EnabledRefRO** - for [[IEnableableComponent (toggleable components)|enableable components]], query for enabled state instead of component data
+- **WithAny vs WithAll**: `WithAny<A, B>()` = has A OR B, `WithAll<A, B>()` = has A AND B
 
-- **Query caching** - Unity caches queries internally, repeated identical queries reuse same query object
+- **Order matters**: Filter order doesn't affect results, but entity access must be last in tuple
 
-- **Deconstruction** - use tuple deconstruction in foreach: `var (a, b, c)` for clean variable naming
-
-- **WithOptions** - advanced filtering: `.WithOptions(EntityQueryOptions.IncludePrefab)` to include prefab entities in query
-
-- **Shared component filtering** - can filter by shared component value (less common, check Unity docs for syntax)
+- **Best practices**: Use RefRO for read-only, RefRW for write; cache queries for hot paths; use aspects for related components

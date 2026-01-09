@@ -3,11 +3,11 @@ tags:
   - pattern
 ---
 #### Description
-- **Automatic component addition pattern** where a system detects an "entry point" [[Component]] and automatically adds required supporting components, ensuring dependencies are always satisfied
+- **Automatic component addition pattern** where a system detects "entry point" [[Component]] and automatically adds required supporting components
 
 - Query pattern uses `.WithAll<EntryComponent>().WithNone<SupportingComponent>()` to find entities missing required components
 
-- Supporting components become difficult to manually remove - system will re-add them next frame, enforcing component dependencies
+- Supporting components become difficult to manually remove - system re-adds them next frame, enforcing component dependencies
 
 - Useful for maintaining invariants where certain components always require other components to function correctly
 
@@ -21,33 +21,25 @@ public struct CharacterController : IComponentData
 }
 
 // Supporting components - auto-added by system
-public struct CharacterVelocity : IComponentData
-{
-    public float3 Value;
-}
-
-public struct GroundedState : IComponentData
-{
-    public bool IsGrounded;
-}
+public struct CharacterVelocity : IComponentData { public float3 Value; }
+public struct GroundedState : IComponentData { public bool IsGrounded; }
 
 // Auto-add system
 [UpdateInGroup(typeof(InitializationSystemGroup))]
 [BurstCompile]
 public partial struct AutoAddCharacterComponentsSystem : ISystem
 {
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         var ecb = new EntityCommandBuffer(Allocator.Temp);
 
-        // Find entities with CharacterController but missing supporting components
+        // Find entities missing supporting components
         foreach (var (controller, entity) in
             SystemAPI.Query<RefRO<CharacterController>>()
-                .WithNone<CharacterVelocity>()  // Missing this component
+                .WithNone<CharacterVelocity>()
                 .WithEntityAccess())
         {
-            // Automatically add required components
+            // Auto-add required components
             ecb.AddComponent(entity, new CharacterVelocity { Value = float3.zero });
             ecb.AddComponent(entity, new GroundedState { IsGrounded = true });
         }
@@ -57,155 +49,8 @@ public partial struct AutoAddCharacterComponentsSystem : ISystem
     }
 }
 
-// Example: Physics auto-add
-public struct PhysicsBody : IComponentData
-{
-    public float Mass;
-}
-
-// Supporting physics components
-public struct PhysicsVelocity : IComponentData
-{
-    public float3 Linear;
-    public float3 Angular;
-}
-
-public struct PhysicsDamping : IComponentData
-{
-    public float Linear;
-    public float Angular;
-}
-
-[UpdateInGroup(typeof(InitializationSystemGroup))]
-[BurstCompile]
-public partial struct AutoAddPhysicsComponentsSystem : ISystem
-{
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
-
-        // Auto-add velocity
-        foreach (var entity in
-            SystemAPI.QueryBuilder()
-                .WithAll<PhysicsBody>()
-                .WithNone<PhysicsVelocity>()
-                .Build()
-                .ToEntityArray(Allocator.Temp))
-        {
-            ecb.AddComponent(entity, new PhysicsVelocity
-            {
-                Linear = float3.zero,
-                Angular = float3.zero
-            });
-        }
-
-        // Auto-add damping
-        foreach (var entity in
-            SystemAPI.QueryBuilder()
-                .WithAll<PhysicsBody>()
-                .WithNone<PhysicsDamping>()
-                .Build()
-                .ToEntityArray(Allocator.Temp))
-        {
-            ecb.AddComponent(entity, new PhysicsDamping
-            {
-                Linear = 0.01f,
-                Angular = 0.05f
-            });
-        }
-
-        ecb.Playback(state.EntityManager);
-        ecb.Dispose();
-    }
-}
-
-// Example: Multiple entry points
-public struct Renderable : IComponentData { }
-public struct WorldRenderBounds : IComponentData { }
-public struct MaterialMeshInfo : IComponentData { }
-
-[UpdateInGroup(typeof(InitializationSystemGroup))]
-[UpdateAfter(typeof(TransformSystemGroup))]
-[BurstCompile]
-public partial struct AutoAddRenderComponentsSystem : ISystem
-{
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
-
-        // Auto-add multiple components at once
-        var componentsToAdd = new FixedList128Bytes<ComponentType>
-        {
-            ComponentType.ReadWrite<WorldRenderBounds>(),
-            ComponentType.ReadWrite<MaterialMeshInfo>(),
-            ComponentType.ReadWrite<LocalToWorld>(),
-        };
-
-        foreach (var entity in
-            SystemAPI.QueryBuilder()
-                .WithAll<Renderable>()
-                .WithNone<WorldRenderBounds>()
-                .Build()
-                .ToEntityArray(Allocator.Temp))
-        {
-            // Add all supporting components together
-            ecb.AddComponent(entity, new ComponentTypeSet(componentsToAdd));
-        }
-
-        ecb.Playback(state.EntityManager);
-        ecb.Dispose();
-    }
-}
-
-// Example: Conditional auto-add
-public struct Health : IComponentData
-{
-    public float Current;
-    public float Max;
-}
-
-public struct Regeneration : IComponentData
-{
-    public float RatePerSecond;
-}
-
-public struct HealthBar : IComponentData
-{
-    public Entity UIElement;
-}
-
-[UpdateInGroup(typeof(InitializationSystemGroup))]
-[BurstCompile]
-public partial struct AutoAddHealthComponentsSystem : ISystem
-{
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
-
-        // Auto-add only if health has regeneration
-        foreach (var (health, regen, entity) in
-            SystemAPI.Query<RefRO<Health>, RefRO<Regeneration>>()
-                .WithNone<HealthBar>()
-                .WithEntityAccess())
-        {
-            // Only add health bar if entity has regeneration
-            ecb.AddComponent(entity, new HealthBar { UIElement = Entity.Null });
-        }
-
-        ecb.Playback(state.EntityManager);
-        ecb.Dispose();
-    }
-}
-
-// Example: Auto-add with initial values based on entry component
-public struct Enemy : IComponentData
-{
-    public int Level;
-}
-
+// Example: Auto-add with calculated values
+public struct Enemy : IComponentData { public int Level; }
 public struct EnemyStats : IComponentData
 {
     public float Health;
@@ -213,170 +58,115 @@ public struct EnemyStats : IComponentData
     public float Speed;
 }
 
-[UpdateInGroup(typeof(InitializationSystemGroup))]
-[BurstCompile]
-public partial struct AutoAddEnemyStatsSystem : ISystem
+foreach (var (enemy, entity) in
+    SystemAPI.Query<RefRO<Enemy>>()
+        .WithNone<EnemyStats>()
+        .WithEntityAccess())
 {
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
+    // Calculate stats based on entry component data
+    int level = enemy.ValueRO.Level;
+    ecb.AddComponent(entity, new EnemyStats
     {
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
-
-        foreach (var (enemy, entity) in
-            SystemAPI.Query<RefRO<Enemy>>()
-                .WithNone<EnemyStats>()
-                .WithEntityAccess())
-        {
-            // Calculate stats based on level
-            int level = enemy.ValueRO.Level;
-            ecb.AddComponent(entity, new EnemyStats
-            {
-                Health = 100 + (level * 20),
-                Damage = 10 + (level * 2),
-                Speed = 3 + (level * 0.5f)
-            });
-        }
-
-        ecb.Playback(state.EntityManager);
-        ecb.Dispose();
-    }
+        Health = 100 + (level * 20),
+        Damage = 10 + (level * 2),
+        Speed = 3 + (level * 0.5f)
+    });
 }
 ```
 
+**Common use cases:**
+- Physics body → auto-add velocity + damping components
+- Renderable → auto-add render bounds + material info
+- Character → auto-add velocity + grounded state
+- Parent → auto-add PreviousParent cleanup component
+
 #### Pros
-- **Enforces dependencies** - ensures required components are always present, preventing bugs from missing components
+- **Enforces dependencies** - ensures required components always present, preventing bugs
 
-- **Simplifies entity creation** - users only need to add entry component, supporting components added automatically
+- **Simplifies entity creation** - users only add entry component, supporting components added automatically
 
-- **Self-healing** - if supporting components are accidentally removed, they're re-added next frame
+- **Self-healing** - if supporting components accidentally removed, re-added next frame
 
 - **Decouples creation** - entity creation code doesn't need to know all required components
 
-- **Centralized logic** - component dependencies defined in one place (auto-add system) rather than scattered across codebase
+- **Centralized logic** - component dependencies defined in one place
 
 #### Cons
-- **Hidden behavior** - not obvious from entity inspector or code that components will be auto-added
+- **Hidden behavior** - not obvious from entity inspector that components will be auto-added
 
-- **Performance overhead** - system runs every frame checking for missing components (though query is usually empty)
+- **Performance overhead** - system runs every frame checking for missing components
 
-- **Can't manually remove** - supporting components resist removal, making testing and debugging harder
+- **Can't manually remove** - supporting components resist removal, harder to test/debug
 
-- **[[Structural changes]] cost** - adding components has structural change overhead, though only happens once per entity
+- **[[Structural changes]] cost** - adding components has overhead, though only happens once
 
-- **Execution order dependency** - must run in InitializationSystemGroup or early to avoid one-frame delays
+- **Execution order dependency** - must run in InitializationSystemGroup or early
 
 #### Best use
-- **Required component pairs** - when component A always needs components B and C to function (physics body + velocity + damping)
+- **Required component pairs** - when component A always needs B and C (physics body + velocity + damping)
 
-- **Complex features** - rendering, physics, AI that require multiple components to work correctly
+- **Complex features** - rendering, physics, AI requiring multiple components
 
-- **Framework features** - when building reusable systems that users interact with via single entry component
+- **Framework features** - reusable systems users interact with via single entry component
 
-- **Preventing user errors** - when manual component management is error-prone (forgetting required components)
+- **Preventing user errors** - when manual component management error-prone
 
-- **Cleanup component pairs** - auto-add [[ICleanupComponentData]] cleanup components when regular components are added
+- **Cleanup component pairs** - auto-add [[ICleanupComponentData]] cleanup components
 
 #### Avoid if
-- **Optional components** - if supporting components are optional or situational, don't auto-add them
+- **Optional components** - if supporting components situational, don't auto-add
 
-- **Performance critical** - if entities are created very frequently, structural change overhead may be too high
+- **Performance critical** - if entities created very frequently, structural change overhead too high
 
-- **Simple dependencies** - for 1-2 components, [[Helper Methods for Component Sets]] pattern may be clearer
+- **Simple dependencies** - for 1-2 components, [[Helper Methods for Component Sets]] may be clearer
 
-- **Need manual control** - if users need fine-grained control over component presence, auto-add is too restrictive
+- **Need manual control** - if users need fine-grained control, auto-add too restrictive
 
 #### Extra tip
-- **Run early** - use `[UpdateInGroup(typeof(InitializationSystemGroup))]` to ensure components added before other systems run
+- **Run early**: Use `[UpdateInGroup(typeof(InitializationSystemGroup))]` to ensure components added before other systems
 
-- **Combine with helper methods** - use [[Helper Methods for Component Sets]] pattern to add multiple components efficiently:
-  ```csharp
-  var componentsToAdd = new ComponentTypeSet(new FixedList128Bytes<ComponentType> { /* ... */ });
-  ecb.AddComponent(entity, componentsToAdd);
-  ```
-
-- **[[RequireMatchingQueriesForUpdate]] optimization** - add this attribute to skip system when no matching entities exist:
+- **RequireMatchingQueriesForUpdate**: Add this attribute to skip system when no matching entities:
   ```csharp
   [RequireMatchingQueriesForUpdate]
   public partial struct AutoAddSystem : ISystem { }
   ```
 
-- **Multiple queries** - can have multiple queries in same system for different entry/supporting component pairs
-
-- **Cleanup component auto-add** - common pattern is auto-adding cleanup components:
+- **Multiple component sets**: Can use ComponentTypeSet to add multiple at once:
   ```csharp
-  // Auto-add PreviousParent when Parent is added
-  foreach (var entity in
-      SystemAPI.QueryBuilder()
-          .WithAll<Parent>()
-          .WithNone<PreviousParent>()
-          .Build()
-          .ToEntityArray(Allocator.Temp))
-  {
-      ecb.AddComponent<PreviousParent>(entity);
-  }
+  var components = new ComponentTypeSet(/* ... */);
+  ecb.AddComponent(entity, components);
   ```
 
-- **Conditional auto-add** - can check component values to decide what to add:
+- **Cleanup component auto-add**: Common pattern for cleanup components:
   ```csharp
-  foreach (var (config, entity) in
-      SystemAPI.Query<RefRO<CharacterConfig>>()
-          .WithNone<AIController>()
-          .WithEntityAccess())
-  {
-      if (!config.ValueRO.IsPlayer)
-      {
-          ecb.AddComponent<AIController>(entity);
-      }
-  }
+  // Auto-add PreviousParent when Parent added
+  .WithAll<Parent>().WithNone<PreviousParent>()
   ```
 
-- **Documentation is critical** - clearly document which components are entry points and what gets auto-added
-
-- **Unity packages using this** - Unity.Transforms, Unity.Rendering, Unity.Physics all use variations of this pattern
-
-- **Testing considerations** - tests need to run auto-add systems or manually add all required components
-
-- **Debugging auto-adds** - add debug logs in editor to show when components are auto-added:
+- **Conditional auto-add**: Can check component values to decide what to add:
   ```csharp
-  #if UNITY_EDITOR
-  Debug.Log($"Auto-added supporting components to entity {entity}");
-  #endif
+  if (!config.ValueRO.IsPlayer)
+      ecb.AddComponent<AIController>(entity);
   ```
 
-- **Remove resistance** - supporting components can be removed with `EntityManager.RemoveComponent` but will be re-added next frame unless entry component also removed
+- **Unity packages using this**: Unity.Transforms, Unity.Rendering, Unity.Physics all use variations
 
-- **Performance optimization** - cache EntityQuery in OnCreate and use `.IsEmpty` check:
+- **Documentation critical**: Clearly document which components are entry points and what gets auto-added
+
+- **Performance optimization**: Cache EntityQuery in OnCreate and check `.IsEmpty`:
   ```csharp
-  private EntityQuery _missingComponentsQuery;
-
-  public void OnCreate(ref SystemState state)
-  {
-      _missingComponentsQuery = SystemAPI.QueryBuilder()
-          .WithAll<EntryComponent>()
-          .WithNone<SupportingComponent>()
-          .Build();
-  }
-
-  public void OnUpdate(ref SystemState state)
-  {
-      if (_missingComponentsQuery.IsEmpty) return;
-      // Process additions...
-  }
+  if (_missingComponentsQuery.IsEmpty) return;
   ```
 
-- **Alternative: Prefabs** - for static entity types, consider using prefabs with all components pre-added instead of auto-add systems
-
-- **Alternative: [[Baking]]** - can add supporting components during baking process instead of runtime auto-add:
+- **Alternative - Baking**: Can add supporting components during baking instead of runtime:
   ```csharp
   public override void Bake(MyAuthoring authoring)
   {
-      var entity = GetEntity(TransformUsageFlags.Dynamic);
       AddComponent<EntryComponent>(entity);
-      AddComponent<SupportingComponent1>(entity);
-      AddComponent<SupportingComponent2>(entity);
+      AddComponent<SupportingComponent>(entity);
   }
   ```
 
-- **Hybrid approach** - use baking for SubScene entities, auto-add for runtime-spawned entities
+- **Hybrid approach**: Use baking for SubScene entities, auto-add for runtime-spawned entities
 
-- **Error checking** - can add validation to ensure component values are valid when auto-adding
+- **Best practices**: Document entry points, run in InitializationSystemGroup, use RequireMatchingQueriesForUpdate, consider baking for static entities
