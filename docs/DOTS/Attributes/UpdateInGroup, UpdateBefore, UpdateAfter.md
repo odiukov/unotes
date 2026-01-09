@@ -107,7 +107,9 @@ public partial struct CombatSystem : ISystem
 - **Common system groups:**
   - `InitializationSystemGroup` - runs first, initialization and setup
   - `SimulationSystemGroup` - main gameplay logic (default if no [UpdateInGroup])
-  - `FixedStepSimulationSystemGroup` - fixed timestep updates (physics, deterministic simulation)
+  - `FixedStepSimulationSystemGroup` - fixed timestep updates (physics, deterministic simulation) - uses Fixed Rate Catch-Up Manager at 60 Hz
+  - `VariableRateSimulationSystemGroup` - low-frequency updates using real time - uses Variable Rate Manager at 15 FPS (good for cleanup, non-critical background tasks)
+  - `LateSimulationSystemGroup` - runs after [[TransformSystemGroup]], use when you need final world positions
   - `PresentationSystemGroup` - rendering and presentation, runs last
   - `AfterPhysicsSystemGroup` - runs after physics simulation (trigger/collision processing)
   - `TransformSystemGroup` - computes LocalToWorld from LocalTransform + Parent hierarchy
@@ -115,13 +117,40 @@ public partial struct CombatSystem : ISystem
 
 - **Default group** - systems without `[UpdateInGroup]` default to `SimulationSystemGroup`
 
-- **Nested groups** - system groups can contain other system groups, creating hierarchy (e.g., AfterPhysicsSystemGroup inside FixedStepSimulationSystemGroup)
+- **Nested groups** - system groups can contain other system groups, creating hierarchy. SimulationSystemGroup structure:
+  ```
+  SimulationSystemGroup (every frame)
+    ├─ FixedStepSimulationSystemGroup (fixed 60 Hz)
+    ├─ VariableRateSimulationSystemGroup (variable ~15 FPS)
+    ├─ [Your systems without UpdateInGroup] (every frame, default)
+    └─ LateSimulationSystemGroup (every frame, after transforms)
+  ```
+
+- **Custom group recommendation** - create your own system group for game-specific systems and update it before TransformSystemGroup:
+  ```csharp
+  [UpdateInGroup(typeof(SimulationSystemGroup))]
+  [UpdateBefore(typeof(TransformSystemGroup))]
+  public class GameplaySystemGroup : ComponentSystemGroup { }
+  ```
+  Then organize your systems inside this group for better structure.
 
 - **Multiple constraints** - can combine `[UpdateBefore]` and `[UpdateAfter]` to sandwich a system between two others
 
 - **OrderFirst/OrderLast** - use `[UpdateInGroup(typeof(Group), OrderFirst = true)]` or `OrderLast = true` to run at start/end of group
+  - **Never set both to true** - setting both OrderFirst=true AND OrderLast=true creates undefined behavior
+  - Creates three priority brackets: OrderFirst (earliest) → default (middle) → OrderLast (latest)
+  - `[UpdateBefore]` and `[UpdateAfter]` only work within the same priority bracket
 
 - **Creation order** - within a group without explicit ordering, systems update in the order they were created (file/class order)
+
+- **CreateBefore/CreateAfter** - similar to UpdateBefore/UpdateAfter but controls creation order (rare use case):
+  ```csharp
+  [CreateBefore(typeof(OtherSystem))]
+  public partial struct InitSystem : ISystem { }
+  ```
+  Only works if systems are in same group and same priority bracket
+
+- **Rate managers and time** - see [[Rate Managers]] to understand how system groups control update frequency and [[SystemAPI.Time]] for time perception in systems
 
 - **Debugging order** - enable "DOTS > Preferences > Show System Execution Order" in Unity to visualize system update sequence
 

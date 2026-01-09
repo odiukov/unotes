@@ -40,6 +40,22 @@ GameConfig config = SystemAPI.GetSingleton<GameConfig>();
 RefRW<PlayerState> state = SystemAPI.GetSingletonRW<PlayerState>();
 ```
 
+## Component Management Patterns
+
+- **[[Cleanup Component Pattern]]** - Detect component removal using paired cleanup components
+- **[[Helper Methods for Component Sets]]** - Utility functions to add groups of interdependent components
+- **[[Auto-Add System Pattern]]** - Automatically add supporting components when entry component exists
+- **[[Reusable Archetype Groups]]** - Cache archetype definitions for reuse across systems
+
+## Entity Control Patterns
+
+- **[[Disable Tag Pattern]]** - Temporarily pause entity processing using disable tags
+- **[[Request Component Pattern]]** - Reversible operations triggered by adding/removing request components
+
+## Data Structure Patterns
+
+- **[[NativeParallelMultiHashMap for Entity Collections]]** - Store one-to-many entity relationships (parent-children, groupings)
+
 ## Additional Patterns
 
 ### Entity Relationships
