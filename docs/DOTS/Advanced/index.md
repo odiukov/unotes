@@ -116,9 +116,3 @@ For more information, see:
 - [Unity.Entities Manual](https://docs.unity3d.com/Packages/com.unity.entities@latest)
 - [Unity.Burst Manual](https://docs.unity3d.com/Packages/com.unity.burst@latest)
 
-## See Also
-
-- [[ISystem]] - System basics
-- [[IJobEntity]] - Job basics
-- [[EntityCommandBuffer]] - Deferred structural changes
-- [[BurstCompile]] - Burst compiler

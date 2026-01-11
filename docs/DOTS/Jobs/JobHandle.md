@@ -156,11 +156,3 @@ public void CombineDependencies()
 
 - **Safety handle reservation** - JobHandles "reserve" safety handles on [[NativeCollections]] until `Complete()` is called, preventing conflicting access during execution
 
-## See Also
-
-- [[IJob]] - Single-threaded job
-- [[IJobParallelFor]] - Parallel array processing
-- [[IJobEntity]] - Entity iteration job
-- [[Job Safety System]] - How dependencies prevent race conditions
-- [[Sync points]] - When jobs are forced to complete
-- [[System Dependencies]] - Automatic dependency management in ECS

@@ -41,9 +41,3 @@ Components are pure data containers attached to [[Entity|entities]] - they defin
 4. **Share with BlobAssets** - for read-only configuration data
 5. **Tag Components** - for cheap filtering (zero memory per entity)
 
-## See Also
-
-- [[Entity]] - What components attach to
-- [[Archetype]] - Component type combinations
-- [[ISystem]] - Systems that process components
-- [[Baking]] - Creating components from GameObjects

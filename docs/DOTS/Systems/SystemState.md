@@ -184,11 +184,3 @@ public partial struct ExampleSystem : ISystem
   state.CompleteDependency();   // Clearer intent
   ```
 
-## See Also
-
-- [[ISystem]] - Modern system implementation
-- [[SystemAPI]] - Convenience API for systems
-- [[EntityManager]] - Direct entity manipulation
-- [[System Dependencies]] - Automatic dependency management
-- [[JobHandle]] - Job dependency tracking
-- [[EntityQuery]] - Entity filtering

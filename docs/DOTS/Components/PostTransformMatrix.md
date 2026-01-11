@@ -154,10 +154,3 @@ foreach (var (transform, postMatrix) in
 
 - **Rotation gotcha** - rotation in PostTransformMatrix applied AFTER LocalTransform rotation, can produce unexpected results. Usually put all rotation in LocalTransform, only scale in PostTransformMatrix
 
-## See Also
-
-- [[LocalTransform]] - Primary transform with position, rotation, uniform scale
-- [[LocalToWorld]] - Computed world-space transform matrix
-- [[Parent]] - Parent entity for transform hierarchy
-- [[TransformUsageFlags]] - Baking transform component setup
-- [[IComponentData]] - Base component interface

@@ -138,10 +138,3 @@ public struct MyChunkJob : IJobChunk
   - Chunk components destroyed when chunk destroyed (last entity removed)
   - Don't persist independently of chunks
 
-## See Also
-
-- [[IComponentData]] - Regular per-entity components
-- [[ISharedComponentData]] - Shared value components
-- [[Chunk]] - 16KiB memory blocks storing entities
-- [[Archetype]] - Unique component type combinations
-- [[EntityManager]] - Entity and component operations

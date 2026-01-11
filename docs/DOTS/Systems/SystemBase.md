@@ -114,8 +114,3 @@ public partial struct HealthRegenSystem : ISystem
 
 - **Still supported** - SystemBase will continue to work, but is not recommended for new code
 
-## See Also
-
-- [[ISystem]] - Modern struct-based system (recommended)
-- [[IJobEntity]] - Replacement for Entities.ForEach
-- [[BurstCompile]] - Performance benefits of Burst

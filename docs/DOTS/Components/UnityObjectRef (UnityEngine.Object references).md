@@ -172,9 +172,3 @@ foreach (var skin in SystemAPI.Query<RefRW<CharacterSkin>>())
 | [[BlobAsset (immutable data)\|BlobAsset]] | ✅ | ✅ | ✅ | Immutable configuration data |
 | Direct `UnityEngine.Object` | ❌ | ❌ | ❌ | Not allowed in IComponentData |
 
-## See Also
-
-- [[Managed IComponentData (class components)]] - Alternative for managed references
-- [[BlobAsset (immutable data)]] - Pure data alternative
-- [[Baking]] - Converting Unity objects during authoring
-- [[ICleanupComponentData]] - Cleanup when entity destroyed

@@ -162,11 +162,3 @@ foreach (var localToWorld in SystemAPI.Query<RefRO<LocalToWorld>>())
                      = Translate(10,5,0)  // Final world position
   ```
 
-## See Also
-
-- [[LocalTransform]] - Writable local-space transform (position, rotation, uniform scale)
-- [[Parent]] - Parent entity reference for hierarchies
-- [[PostTransformMatrix]] - Additional matrix for non-uniform scale
-- [[TransformUsageFlags]] - Baking flags controlling transform component setup
-- [[Static]] - Tag for entities that never move
-- [[IComponentData]] - Base component interface

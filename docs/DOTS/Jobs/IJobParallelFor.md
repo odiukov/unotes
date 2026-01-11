@@ -132,11 +132,3 @@ public void FindClosestTargets()
 
 - **For entity processing, prefer [[IJobEntity]]** - it automatically handles parallel scheduling, provides cleaner syntax, and integrates better with the ECS query system
 
-## See Also
-
-- [[IJob]] - Single-threaded job
-- [[IJobEntity]] - Simplified parallel entity iteration
-- [[JobHandle]] - Job dependencies and scheduling
-- [[Burst]] - Burst compiler for optimization
-- [[NativeCollections]] - Thread-safe containers for jobs
-- [[Job Safety System]] - Parallel access validation

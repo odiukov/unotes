@@ -171,9 +171,3 @@ else
 
 5. **Bulk operations = manual entities only** - EntityQuery overloads are safe for manually created entities, risky for baked prefabs
 
-## See Also
-
-- [[EntityCommandBuffer]] - Deferred structural changes
-- [[Baking]] - Understanding baked entity structure
-- [[Chunk]] - Chunk-based memory layout
-- [[Structural changes]] - Operations that modify archetypes

@@ -152,10 +152,3 @@ foreach (var transform in SystemAPI.Query<RefRW<LocalTransform>>())
 
 - **Performance tip** - batch transform changes in jobs with [[IJobEntity]] for thousands of entities
 
-## See Also
-
-- [[LocalToWorld]] - Read-only world-space transform matrix computed from LocalTransform
-- [[Parent]] - Parent entity reference for transform hierarchies
-- [[PostTransformMatrix]] - Additional matrix for non-uniform scale
-- [[TransformUsageFlags]] - Baking flags controlling which transform components are added
-- [[IComponentData]] - Base component interface

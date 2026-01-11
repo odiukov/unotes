@@ -468,10 +468,3 @@ public class EditorAwareBootstrap : ICustomBootstrap
   }
   ```
 
-## See Also
-
-- [[World]] - Isolated entity collection container
-- [[ISystem]] - Modern system implementation
-- [[SystemBase]] - Legacy managed system base class
-- [[EntityManager]] - Entity and component operations
-- [[SimulationSystemGroup]] - Main simulation update group

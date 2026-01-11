@@ -86,8 +86,3 @@ Core concepts and terminology
 - ✨ [[UnityObjectRef (UnityEngine.Object references)|UnityObjectRef]] - new blittable Unity object wrapper
 - ✨ TryGetRefRW/TryGetRefRO - safer ComponentLookup access
 
-## See Also
-
-- [Unity Entities Manual](https://docs.unity3d.com/Packages/com.unity.entities@latest)
-- [Unity Burst Manual](https://docs.unity3d.com/Packages/com.unity.burst@latest)
-- [Unity Job System Manual](https://docs.unity3d.com/Manual/JobSystem.html)

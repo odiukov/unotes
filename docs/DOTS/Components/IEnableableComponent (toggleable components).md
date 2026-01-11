@@ -154,10 +154,3 @@ ecb.SetComponentEnabled<Stunned>(entity, true);
 
 - **IJobChunk support** - use `useEnabledMask` and `chunkEnabledMask` parameters with `ChunkEntityEnumerator` to iterate only enabled entities
 
-## See Also
-
-- [[IComponentData]] - Base component interface
-- [[Chunk]] - 16KiB memory blocks with enable bitmasks
-- [[EntityQuery]] - Entity filtering with enabled/disabled support
-- [[EntityCommandBuffer]] - Deferred component enable/disable
-- [[ComponentLookup and BufferLookup]] - Random access with enabled state checks

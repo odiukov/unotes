@@ -269,8 +269,3 @@ if (!sceneSystem.IsSceneLoaded(guid))
 // Works in both Editor and builds
 ```
 
-## See Also
-
-- [[Baker (authoring conversion)]] - Writing conversion code
-- [[TransformUsageFlags]] - Transform component control
-- [[BlobAsset (immutable data)]] - Efficient shared data in baking

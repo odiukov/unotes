@@ -184,10 +184,3 @@ public partial struct DamageSystem : ISystem  // Accesses: Damage
 // All three run in parallel - maximum CPU utilization!
 ```
 
-## See Also
-
-- [[Job Safety System]] - How job safety works
-- [[Sync points]] - When jobs are forced to complete
-- [[UpdateInGroup, UpdateBefore, UpdateAfter]] - System ordering
-- [[ISystem]] - System interface
-- [[ECS Design Decisions]] - High-level system architecture patterns including system ordering strategies

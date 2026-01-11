@@ -128,11 +128,3 @@ public struct MoveJob : IJob
 
 - **[NativeDisableContainerSafetyRestriction]** - disables safety checks on a specific field when you guarantee thread-safety manually. Dangerous - only use when profiling proves safety checks are a bottleneck
 
-## See Also
-
-- [[IJob]] - Single-threaded job using native collections
-- [[IJobParallelFor]] - Parallel job for array processing
-- [[JobHandle]] - Job dependencies and completion
-- [[Job Safety System]] - Thread safety validation
-- [[Burst]] - Burst compiler for performance
-- [[Allocator]] - Memory allocation strategies

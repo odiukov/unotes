@@ -48,8 +48,3 @@ public class MyAuthoring : MonoBehaviour
 3. Track dependencies with **DependsOn()** for assets
 4. Separate authoring data from runtime data for optimal performance
 
-## See Also
-
-- [[IComponentData]] - Runtime component types
-- [[BlobAsset (immutable data)]] - Immutable shared data
-- [[Managed IComponentData (class components)]] - Hybrid workflow components

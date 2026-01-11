@@ -68,9 +68,3 @@ public readonly partial struct MyAspect : IAspect
 4. **Use [[ChunkIndexInQuery]]** with ParallelWriter for determinism
 5. **Add [[RequireMatchingQueriesForUpdate]]** for systems that may have no work
 
-## See Also
-
-- [[ISystem]] - System interface
-- [[IJobEntity]] - Job type
-- [[IAspect (component grouping)]] - Aspect interface
-- [[EntityCommandBuffer]] - Deferred structural changes

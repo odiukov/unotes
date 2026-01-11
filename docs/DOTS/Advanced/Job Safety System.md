@@ -131,9 +131,3 @@ job. You are trying to read from it on the main thread. This is not allowed.
 
 - **Complete() is a [[Sync points|sync point]]** - avoid calling `JobHandle.Complete()` when possible
 
-## See Also
-
-- [[Job]] - Overview of jobs in DOTS
-- [[Sync points]] - When jobs are forced to complete
-- [[IJobEntity]] - Simplified job type
-- [[ReadOnly and Optional]] - Access control attributes

@@ -170,11 +170,3 @@ if (childBufferLookup.TryGetBuffer(targetParent, out DynamicBuffer<Child> childr
 
 - **Performance consideration** - Parent/Child relationship updates batched in ParentSystem, LocalToWorld computation parallelized, deep hierarchies (10+ levels) multiply matrices for each level each frame
 
-## See Also
-
-- [[LocalTransform]] - Child's local transform relative to parent
-- [[LocalToWorld]] - Computed world-space transform matrix
-- [[Child]] - Buffer component on parent listing all children
-- [[TransformUsageFlags]] - Baking flags for transform component setup
-- [[EntityCommandBuffer]] - Deferred structural changes for Parent modification
-- [[Structural changes]] - Understanding archetype changes and overhead

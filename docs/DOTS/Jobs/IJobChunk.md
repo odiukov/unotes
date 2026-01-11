@@ -266,11 +266,3 @@ public partial struct EnableableComponentJob : IJobChunk
   - Custom iteration patterns
   ```
 
-## See Also
-
-- [[IJobEntity]] - Higher-level entity iteration job (easier to use)
-- [[IJobParallelFor]] - Parallel array processing
-- [[EntityQuery]] - Entity filtering for jobs
-- [[ComponentLookup and BufferLookup]] - Random entity access
-- [[IEnableableComponent (toggleable components)|IEnableableComponent]] - Toggleable components
-- [[Chunk]] - 16KiB memory blocks storing entities
