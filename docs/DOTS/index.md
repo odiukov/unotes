@@ -4,7 +4,7 @@ Complete reference for Unity's Data-Oriented Technology Stack (DOTS) - covering 
 
 ## Quick Navigation
 
-### 📦 **[[Components/index|Components]]**
+### 📦 **[[DOTS/Components/index|Components]]**
 Data containers - what entities "have"
 - [[IComponentData]] - General-purpose components
 - [[IBufferElementData (dynamic buffers)]] - Dynamic arrays
@@ -14,7 +14,7 @@ Data containers - what entities "have"
 - [[UnityObjectRef (UnityEngine.Object references)]] - Unity asset references
 - [[IAspect (component grouping)]] - Component grouping (deprecated 6.5+)
 
-### ⚙️ **[[Systems/index|Systems]]**
+### ⚙️ **[[DOTS/Systems/index|Systems]]**
 Logic processors - where behavior lives
 - [[ISystem]] - Modern struct-based systems (recommended)
 - [[SystemBase]] - Legacy class-based systems
@@ -22,19 +22,19 @@ Logic processors - where behavior lives
 - [[ComponentLookup and BufferLookup]] - Random entity access
 - [[RefRO and RefRW]] - Component access wrappers
 
-### ⚡ **[[Jobs/index|Jobs]]**
+### ⚡ **[[DOTS/Jobs/index|Jobs]]**
 Parallel processing - maximize CPU utilization
 - [[IJobEntity]] - Entity iteration jobs
 - [[ITriggerEventsJob]] - Physics trigger events
 - More job types in documentation
 
-### 🔨 **[[Baking/index|Baking]]**
+### 🔨 **[[DOTS/Baking/index|Baking]]**
 Authoring workflow - GameObject to Entity conversion
 - [[Baker (authoring conversion)]] - Conversion code
 - [[TransformUsageFlags]] - Transform component control
 - [[Baking Workflow and SubScenes]] - Complete baking guide
 
-### 🏷️ **[[Attributes/index|Attributes]]**
+### 🏷️ **[[DOTS/Attributes/index|Attributes]]**
 System control - ordering, compilation, access
 - [[BurstCompile]] - Native code compilation
 - [[UpdateInGroup, UpdateBefore, UpdateAfter]] - System ordering
@@ -42,25 +42,25 @@ System control - ordering, compilation, access
 - [[RequireMatchingQueriesForUpdate]] - Conditional updates
 - [[ReadOnly and Optional]] - Access control
 
-### 📐 **[[../Patterns/index|Patterns]]**
+### 📐 **[[DOTS/Patterns/index|Patterns]]**
 Common DOTS patterns and best practices
 - [[SystemAPI.Query]] - Entity iteration pattern
 - [[WithChangeFilter (reactive updates)]] - Reactive systems
 - [[Singleton entities and components]] - Global data
 
-### 🎓 **[[Advanced/index|Advanced]]**
+### 🎓 **[[DOTS/Advanced/index|Advanced]]**
 Deep dives - internals and optimization
 - [[Job Safety System]] - Race condition prevention
 - [[System Dependencies]] - Automatic dependency management
 - [[Sync points]] - Performance killers
 - [[API Gotchas]] - Non-obvious API behaviors
 
-### 🧪 **[[Testing/index|Testing]]**
+### 🧪 **[[DOTS/Testing/index|Testing]]**
 Testing strategies - validation and performance
 - [[Unit Testing]] - System logic validation with test worlds
 - [[Performance Testing]] - Automated benchmarking and optimization
 
-### 📚 **[[Glossary/index|Glossary]]**
+### 📚 **[[DOTS/Glossary/index|Glossary]]**
 Core concepts and terminology
 - [[Entity]] - Unique identifier
 - [[Component]] - Data container
@@ -69,15 +69,6 @@ Core concepts and terminology
 - [[Burst]] - High-performance compiler
 - [[Job]] - Parallel work unit
 - [[Baking]] - Authoring conversion process
-
-## Getting Started
-
-1. **New to DOTS?** Start with [[Entity]], [[Component]], and [[Archetype]] in the Glossary
-2. **Writing systems?** Learn [[ISystem]] and [[SystemAPI.Query]]
-3. **Need performance?** Read [[Burst]], [[Job]], and [[Sync points]]
-4. **Building content?** Check [[Baking/index|Baking]] section
-5. **Testing code?** Explore [[Testing/index|Testing]] for unit and performance testing
-6. **Optimization?** Study [[Advanced/index|Advanced]] topics
 
 ## Unity Entities 6.5+ Updates
 
